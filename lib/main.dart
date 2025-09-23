@@ -1,0 +1,132 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'providers/auth_provider.dart';
+import 'screens/login_screen.dart';
+import 'screens/dashboard_screen.dart'; // Solo una importación
+import 'screens/splash_screen.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()..checkAuth()),
+      ],
+      child: const HarchaApp(),
+    ),
+  );
+}
+
+class HarchaApp extends StatelessWidget {
+  const HarchaApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Harcha Maquinaria',
+      theme: harchaTheme, // Usar el tema personalizado
+      home: Consumer<AuthProvider>(
+        builder: (context, authProvider, child) {
+          // Mientras verifica autenticación, muestra splash
+          if (authProvider.isLoading) {
+            return const SplashScreen();
+          }
+          
+          // Si está autenticado y tiene datos de usuario, va a dashboard
+          if (authProvider.isAuthenticated && authProvider.user != null) {
+            return DashboardScreen(usuario: authProvider.user!);
+          } else {
+            return const LoginScreen();
+          }
+        },
+      ),
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/dashboard': (context) {
+          // Para las rutas nombradas, también necesitas pasar el usuario
+          return Consumer<AuthProvider>(
+            builder: (context, authProvider, child) {
+              if (authProvider.user != null) {
+                return DashboardScreen(usuario: authProvider.user!);
+              } else {
+                return const LoginScreen();
+              }
+            },
+          );
+        },
+      },
+    );
+  }
+}
+
+final ThemeData harchaTheme = ThemeData(
+  primaryColor: const Color(0xFF003366),
+  primaryColorLight: const Color(0xFF009FE3),
+  scaffoldBackgroundColor: const Color(0xFFF4F4F4),
+  appBarTheme: const AppBarTheme(
+    backgroundColor: Color(0xFF003366),
+    foregroundColor: Colors.white,
+    elevation: 2,
+    iconTheme: IconThemeData(color: Colors.white),
+    titleTextStyle: TextStyle(
+      color: Colors.white,
+      fontWeight: FontWeight.bold,
+      fontSize: 20,
+    ),
+  ),
+  colorScheme: ColorScheme.fromSwatch().copyWith(
+    primary: const Color(0xFF003366),
+    secondary: const Color(0xFF009FE3),
+    surface: const Color(0xFFF4F4F4),
+    onPrimary: Colors.white,
+    onSecondary: Colors.white,
+    error: Colors.red,
+  ),
+  cardTheme: CardThemeData(
+    color: Colors.white,
+    elevation: 3,
+    margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  ),
+  elevatedButtonTheme: ElevatedButtonThemeData(
+    style: ElevatedButton.styleFrom(
+      backgroundColor: const Color(0xFF009FE3),
+      foregroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+      elevation: 2,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+    ),
+  ),
+  inputDecorationTheme: InputDecorationTheme(
+    filled: true,
+    fillColor: Colors.white,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: Color(0xFF009FE3)),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: Color(0xFF003366), width: 2),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: const BorderSide(color: Colors.grey),
+    ),
+    labelStyle: const TextStyle(color: Color(0xFF003366)),
+    iconColor: const Color(0xFF009FE3),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+  ),
+  drawerTheme: const DrawerThemeData(backgroundColor: Colors.white, elevation: 4),
+  listTileTheme: ListTileThemeData(
+    iconColor: const Color(0xFF009FE3),
+    textColor: const Color(0xFF222222),
+    selectedTileColor: const Color(0xFF009FE3).withOpacity(0.1),
+    selectedColor: const Color(0xFF003366),
+  ),
+  floatingActionButtonTheme: const FloatingActionButtonThemeData(
+    backgroundColor: Color(0xFFFFD600),
+    foregroundColor: Color(0xFF003366),
+    elevation: 4,
+  ),
+);
