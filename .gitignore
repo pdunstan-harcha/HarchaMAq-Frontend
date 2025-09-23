@@ -14,24 +14,91 @@ flutter_*.png
 *.iml
 *.ipr
 *.iws
+*.swp
+*.swo
+*~
 
 # Environment variables
 .env
 .env.local
+.env.production.local
+.env.development.local
 
 # OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
+desktop.ini
 
 # Logs
 *.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Vercel
 .vercel/
 
 # Testing
 coverage/
+test_driver/
 
 # Local development
 *.tmp
 *.temp
+*.bak
+*.backup
+*.orig
+
+# Firebase (si usas Firebase)
+.firebase/
+firebase-debug.log
+
+# Android specific
+android/app/debug/
+android/app/profile/
+android/app/release/
+android/.gradle/
+android/captures/
+android/gradlew
+android/gradlew.bat
+android/local.properties
+*.keystore
+*.jks
+
+# iOS specific
+ios/Flutter/flutter_assets/
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/ServiceDefinitions.json
+ios/Runner/GeneratedPluginRegistrant.*
+*.mode1v3
+*.mode2v3
+*.moved-aside
+*.pbxuser
+*.perspectivev3
+**/*sync/
+.sconsign.dblite
+.svn/
+
+# Web specific
+web/canvaskit/
+
+# Generated files
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+
+# Documentation
+doc/api/
+
+# Node modules (si tienes herramientas Node.js)
+node_modules/
+package-lock.json
+yarn.lock

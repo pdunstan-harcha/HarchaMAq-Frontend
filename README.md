@@ -1,32 +1,33 @@
+
 # HarchaMAq Frontend 📱
 
 > Flutter mobile application for Harcha Maquinaria management system
 
 ## 🚀 Overview
 
-This is the frontend application for HarchaMAq, a machinery management system built with Flutter. The app allows users to manage machinery operations, fuel recharges, contracts, and reports.
+Este es el frontend para la gestión de maquinaria HarchaMAq, construido en Flutter. Permite administrar operaciones, recargas de combustible, contratos y reportes.
 
 ## ✨ Features
 
-- **🔐 User Authentication** - Secure login system
-- **📊 Dashboard** - Overview of operations and statistics  
-- **⛽ Fuel Management** - Record and track fuel recharges
-- **📝 Contracts & Reports** - Manage contracts and generate reports
-- **📋 Entry/Exit Logs** - Track machinery entries and exits
-- **🔄 Real-time Sync** - Sync with backend API
-- **📱 Multi-platform** - Android, iOS, Web support
+- **🔐 Autenticación de usuario**
+- **📊 Dashboard**
+- **⛽ Gestión de combustible**
+- **📝 Contratos y reportes**
+- **📋 Registros de entradas/salidas**
+- **🔄 Sincronización en tiempo real**
+- **📱 Multi-plataforma: Android, iOS, Web**
 
 ## 🛠️ Tech Stack
 
 - **Framework**: Flutter 3.8.0+
-- **Language**: Dart
+- **Lenguaje**: Dart
 - **State Management**: Provider
-- **HTTP Client**: http package
+- **HTTP Client**: http
 - **Storage**: flutter_secure_storage
-- **Logging**: Custom SafeLogger with logger package
+- **Logging**: SafeLogger + logger
 - **Deployment**: Vercel (Web)
 
-## 📦 Dependencies
+## 📦 Dependencias
 
 ```yaml
 dependencies:
@@ -36,9 +37,200 @@ dependencies:
   http: ^1.1.0
   flutter_secure_storage: ^9.0.0
   intl: ^0.18.1
-  image_picker: ^1.0.4 
+  image_picker: ^1.0.4
   logger: ^2.6.1
 ```
+
+## 🚀 Instalación y Configuración
+
+### Prerequisitos
+
+- Flutter SDK 3.8.0+
+- Dart SDK
+- Android Studio / VS Code
+- Git
+
+### Pasos de instalación
+
+1. **Clonar el repositorio**
+
+   ```bash
+   git clone https://github.com/panchoxgrande/HarchaMAq-Frontend.git
+   cd HarchaMAq-Frontend
+   ```
+
+2. **Instalar dependencias**
+
+   ```bash
+   flutter pub get
+   ```
+
+3. **Configurar entorno**
+
+   ```bash
+   cp .env.example .env
+   # Edita .env con tu URL de backend
+   ```
+
+4. **Ejecutar la app**
+
+   ```bash
+   # Android/iOS
+   flutter run
+   # Web
+   flutter run -d chrome
+   ```
+
+## 🏗️ Comandos útiles
+
+### Desarrollo local
+
+```bash
+flutter run -d chrome
+flutter run -d web-server --web-port 3000
+```
+
+### Build para producción
+
+```bash
+flutter build web --release
+flutter build web --release --web-renderer html
+flutter build web --release --base-href /tu-proyecto/
+```
+
+### Variables de entorno
+
+```bash
+flutter build web --release --dart-define=BASE_URL=https://api.produccion.com
+```
+
+### Vercel CLI
+
+```bash
+npm i -g vercel
+vercel login
+vercel --prod
+```
+
+## 🌐 Deployment (Vercel)
+
+1. **Build para web**
+
+   ```bash
+   flutter build web --release
+   ```
+
+2. **Subir a GitHub**
+3. **Conectar repo en Vercel**
+4. **Configurar build settings** (vercel.json)
+5. **Deploy automático**
+
+### Guía rápida
+
+1. Limpiar y verificar web:
+
+   ```bash
+   flutter clean
+   flutter pub get
+   flutter build web --release --web-renderer html
+   ```
+
+2. Subir a GitHub:
+
+   ```bash
+   git add .
+   git commit -m "feat: configurar para deployment en Vercel"
+   git push origin main
+   ```
+
+3. Configurar en Vercel:
+   - Framework: Other
+   - Root Directory: ./
+   - Build Command: vercel.json
+   - Output Directory: build/web
+   - Install Command: flutter pub get
+
+## 🐙 Setup GitHub
+
+1. Crear repo en GitHub
+2. No agregar README ni .gitignore (ya existen)
+3. Conectar repo local:
+
+   ```powershell
+   git branch -M main
+   git remote add origin https://github.com/panchoxgrande/NOMBRE-DEL-REPO.git
+   git push -u origin main
+   ```
+
+4. Configurar credenciales si es necesario:
+
+   ```powershell
+   git config --global user.name "Tu Nombre"
+   git config --global user.email "tu-email@gmail.com"
+   ```
+
+## 📖 Logging System
+
+Importa y usa SafeLogger:
+
+```dart
+import '../utils/logger.dart';
+SafeLogger.info('Usuario autenticado correctamente');
+SafeLogger.debug('Datos recibidos', responseData);
+SafeLogger.warning('Conexión lenta detectada');
+SafeLogger.error('Error al procesar datos', e);
+```
+
+## 📁 Estructura del Proyecto
+
+```text
+lib/
+├── config.dart              # Configuración
+├── main.dart                # Entry point
+├── providers/               # State management
+├── screens/                 # UI
+├── services/                # API y storage
+├── utils/                   # Utilidades (logger, etc.)
+└── examples/                # Ejemplos
+```
+
+## 🧪 Pruebas
+
+```bash
+flutter test
+flutter drive --target=test_driver/app.dart
+```
+
+## 🤝 Contribuir
+
+1. Forkea el repo
+2. Crea tu branch (`git checkout -b feature/nueva-feature`)
+3. Commit (`git commit -m 'Agrega nueva feature'`)
+4. Push (`git push origin feature/nueva-feature`)
+5. Abre un Pull Request
+
+## 📄 Licencia
+
+Software propietario para Harcha Maquinaria.
+
+## 🆘 Soporte
+
+- Crea un issue en GitHub
+- Contacta al equipo de desarrollo
+
+## 🏗️ Estado del desarrollo
+
+- ✅ Autenticación
+- ✅ Dashboard
+- ✅ Gestión de combustible
+- ✅ Logging
+- ✅ Web deployment
+- 🚧 Reportes avanzados (en progreso)
+- 📋 Push notifications (pendiente)
+
+---
+
+**Desarrollado con ❤️ por el equipo HarchaMAq**
 
 ## 🚀 Getting Started
 
