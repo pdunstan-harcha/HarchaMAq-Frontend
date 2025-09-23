@@ -1,0 +1,21 @@
+<svg width="192" height="192" viewBox="0 0 192 192" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fondo blanco para icono -->
+  <rect width="192" height="192" fill="white"/>
+  
+  <!-- Logo centrado -->
+  <g transform="translate(24, 56)">
+    <!-- Efecto de goteo -->
+    <path d="M10 10 L10 20 Q10 25 15 25 L25 25 Q30 25 30 30 L30 40 Q30 45 25 45 L20 45 Q15 45 15 50 L15 60" 
+          fill="#0066CC" stroke="none"/>
+    
+    <!-- Texto HARCHA -->
+    <text x="40" y="35" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#0066CC">
+      HARCHA
+    </text>
+    
+    <!-- Texto Maquinaria -->
+    <text x="40" y="55" font-family="Arial, sans-serif" font-size="14" fill="#666666">
+      Maquinaria
+    </text>
+  </g>
+</svg>

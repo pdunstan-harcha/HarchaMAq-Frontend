@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 /// Widget reutilizable para mostrar el logo de Harcha Constructora
 class HarchaLogo extends StatelessWidget {
@@ -26,37 +27,53 @@ class HarchaLogo extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Logo image
-        Image.asset(
-          'assets/images/logo.png',
+        // Logo SVG
+        SvgPicture.asset(
+          'assets/images/logo.svg',
           width: width ?? 120,
-          height: height ?? 120,
-          color: useOriginalColors ? null : color,
-          errorBuilder: (context, error, stackTrace) {
-            // Fallback si no se encuentra la imagen
+          height: height ?? 60, // Ajustado para proporción del SVG
+          colorFilter: useOriginalColors 
+            ? null 
+            : ColorFilter.mode(color ?? harchaBlue, BlendMode.srcIn),
+          placeholderBuilder: (context) {
+            // Fallback si no se encuentra el SVG
             return Container(
               width: width ?? 120,
-              height: height ?? 120,
+              height: height ?? 60,
               decoration: BoxDecoration(
                 color: harchaBlue,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(8),
               ),
-              child: Column(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
                     Icons.construction,
-                    size: (width ?? 120) * 0.4,
+                    size: (width ?? 120) * 0.3,
                     color: Colors.white,
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'HARCHA',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: (width ?? 120) * 0.12,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  const SizedBox(width: 8),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'HARCHA',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: (width ?? 120) * 0.12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Maquinaria',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: (width ?? 120) * 0.08,
+                          fontWeight: FontWeight.normal,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
