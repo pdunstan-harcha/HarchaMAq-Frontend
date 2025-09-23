@@ -4,7 +4,7 @@ class AppConfig {
   // Lee BASE_URL desde --dart-define, con valor por defecto
   static const String baseUrl = String.fromEnvironment(
     'BASE_URL',
-    defaultValue: 'https://api.harchamaq.com', // URL de producción por defecto
+    defaultValue: 'https://harchaback-production.up.railway.app', // URL de producción por defecto
   );
 
   // URLs para diferentes entornos
@@ -14,7 +14,7 @@ class AppConfig {
   static const String iosSimulatorUrl =
       'http://localhost:5000'; // Para iOS simulator
   static const String prodUrl =
-      'https://api.harchamaq.com'; // URL de producción (cambiar según sea necesario)
+      'https://harchaback-production.up.railway.app'; // URL de producción en Railway
 
   // Método para obtener la URL apropiada según el entorno
   static String getApiUrl() {

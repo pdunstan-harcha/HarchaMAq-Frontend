@@ -1,13 +1,16 @@
 {
-    "name": "harcha_maquinaria",
-    "short_name": "harcha_maquinaria",
-    "start_url": ".",
+    "id": "/",
+    "name": "HarchaMAq - Gestión de Maquinaria",
+    "short_name": "HarchaMaq",
+    "start_url": "/",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#ffffff",
+    "theme_color": "#2196F3",
+    "description": "Aplicación para gestión de maquinaria, combustible, contratos y reportes de Harcha Maquinaria.",
+    "orientation": "any",
     "prefer_related_applications": false,
+    "categories": ["business", "productivity"],
+    "scope": "/",
     "icons": [
         {
             "src": "icons/Icon-192.png",

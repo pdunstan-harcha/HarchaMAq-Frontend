@@ -101,7 +101,7 @@ flutter build web --release --base-href /tu-proyecto/
 ### Variables de entorno
 
 ```bash
-flutter build web --release --dart-define=BASE_URL=https://api.produccion.com
+flutter build web --release --dart-define=BASE_URL=https://harchaback-production.up.railway.app
 ```
 
 ### Vercel CLI

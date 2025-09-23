@@ -1,5 +1,5 @@
 {
-  "buildCommand": "flutter build web --release --web-renderer html --base-href /",
+  "buildCommand": "flutter build web --release --base-href /",
   "outputDirectory": "build/web",
   "installCommand": "flutter pub get",
   "framework": null,
