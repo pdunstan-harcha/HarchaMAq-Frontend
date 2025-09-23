@@ -1,8 +1,30 @@
 {
+  "functions": {
+    "app/**": {
+      "includeFiles": "build/web/**"
+    }
+  },
   "rewrites": [
     {
       "source": "/(.*)",
       "destination": "/index.html"
+    }
+  ],
+  "routes": [
+    {
+      "src": "^/manifest\\.json$",
+      "dest": "/manifest.json",
+      "headers": {
+        "Content-Type": "application/manifest+json"
+      }
+    },
+    {
+      "src": "^/(assets|canvaskit|icons)/(.*)$", 
+      "dest": "/$1/$2"
+    },
+    {
+      "src": "^/(.*\\.(js|css|png|ico|json))$",
+      "dest": "/$1"
     }
   ],
   "headers": [
