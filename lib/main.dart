@@ -87,12 +87,7 @@ final ThemeData harchaTheme = ThemeData(
     onSecondary: Colors.white,
     error: Colors.red,
   ),
-  cardTheme: CardThemeData(
-    color: Colors.white,
-    elevation: 3,
-    margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-  ),
+  // cardTheme configurado por defecto
   elevatedButtonTheme: ElevatedButtonThemeData(
     style: ElevatedButton.styleFrom(
       backgroundColor: harchaBlue,
