@@ -59,12 +59,17 @@ class HarchaApp extends StatelessWidget {
   }
 }
 
+// Colores oficiales de Harcha Constructora
+const Color harchaBlue = Color(0xFF0066CC);  // Azul del logo
+const Color harchaGray = Color(0xFF666666);  // Gris del logo
+const Color harchaLightBlue = Color(0xFF3399FF);  // Azul claro para acentos
+
 final ThemeData harchaTheme = ThemeData(
-  primaryColor: const Color(0xFF003366),
-  primaryColorLight: const Color(0xFF009FE3),
-  scaffoldBackgroundColor: const Color(0xFFF4F4F4),
+  primaryColor: harchaBlue,
+  primaryColorLight: harchaLightBlue,
+  scaffoldBackgroundColor: const Color(0xFFF8F9FA),
   appBarTheme: const AppBarTheme(
-    backgroundColor: Color(0xFF003366),
+    backgroundColor: harchaBlue,
     foregroundColor: Colors.white,
     elevation: 2,
     iconTheme: IconThemeData(color: Colors.white),
@@ -75,9 +80,9 @@ final ThemeData harchaTheme = ThemeData(
     ),
   ),
   colorScheme: ColorScheme.fromSwatch().copyWith(
-    primary: const Color(0xFF003366),
-    secondary: const Color(0xFF009FE3),
-    surface: const Color(0xFFF4F4F4),
+    primary: harchaBlue,
+    secondary: harchaLightBlue,
+    surface: const Color(0xFFF8F9FA),
     onPrimary: Colors.white,
     onSecondary: Colors.white,
     error: Colors.red,
@@ -90,7 +95,7 @@ final ThemeData harchaTheme = ThemeData(
   ),
   elevatedButtonTheme: ElevatedButtonThemeData(
     style: ElevatedButton.styleFrom(
-      backgroundColor: const Color(0xFF009FE3),
+      backgroundColor: harchaBlue,
       foregroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
