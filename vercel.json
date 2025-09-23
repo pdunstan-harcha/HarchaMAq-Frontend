@@ -1,30 +1,8 @@
 {
-  "functions": {
-    "app/**": {
-      "includeFiles": "build/web/**"
-    }
-  },
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!manifest\\.json|flutter_service_worker\\.js|main\\.dart\\.js|flutter\\.js|flutter_bootstrap\\.js|version\\.json|favicon\\.png|sw\\.js|assets/.*|canvaskit/.*|icons/.*).*)",
       "destination": "/index.html"
-    }
-  ],
-  "routes": [
-    {
-      "src": "^/manifest\\.json$",
-      "dest": "/manifest.json",
-      "headers": {
-        "Content-Type": "application/manifest+json"
-      }
-    },
-    {
-      "src": "^/(assets|canvaskit|icons)/(.*)$", 
-      "dest": "/$1/$2"
-    },
-    {
-      "src": "^/(.*\\.(js|css|png|ico|json))$",
-      "dest": "/$1"
     }
   ],
   "headers": [
