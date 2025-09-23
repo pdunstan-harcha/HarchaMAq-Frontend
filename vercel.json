@@ -1,11 +1,24 @@
 {
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!manifest\\.json|flutter_service_worker\\.js|main\\.dart\\.js|flutter\\.js|flutter_bootstrap\\.js|assets|canvaskit|icons|favicon\\.png|version\\.json|sw\\.js).*)",
       "destination": "/index.html"
     }
   ],
   "headers": [
+    {
+      "source": "/manifest.json",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/manifest+json"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400"
+        }
+      ]
+    },
     {
       "source": "/flutter_service_worker.js",
       "headers": [

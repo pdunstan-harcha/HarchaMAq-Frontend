@@ -118,7 +118,7 @@ class HarchaLoginLogo extends StatelessWidget {
     return const HarchaLogo(
       width: 150,
       height: 150,
-      showText: true,
+      showText: false, // Solo mostrar el logo, sin texto
     );
   }
 }
