@@ -25,6 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _login() async {
     if (_formKey.currentState!.validate()) {
+      if (!mounted) return;
       setState(() => _error = null);
 
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
@@ -34,6 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _passwordController.text,
       );
 
+      if (!mounted) return; // Verificar si el widget sigue montado
       if (!success) {
         setState(() {
           _error = 'Usuario o contraseña incorrectos';

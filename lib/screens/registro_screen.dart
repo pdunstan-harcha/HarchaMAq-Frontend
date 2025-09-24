@@ -12,7 +12,7 @@ class RegistroScreen extends StatefulWidget {
 
 class _RegistroScreenState extends State<RegistroScreen> {
   int? _idMaquina;
-  String _ingresoSalida = 'Ingreso';
+  String _ingresoSalida = 'INGRESO';  // Backend espera "INGRESO" no "Ingreso"
   DateTime _fechaHora = DateTime.now();
   TimeOfDay _tiempo = TimeOfDay.now();
   String _editarFecha = 'No';
@@ -55,7 +55,7 @@ class _RegistroScreenState extends State<RegistroScreen> {
         idMaquina: _idMaquina!,
         fechahora: _fechaHora.toIso8601String(),
         ingresoSalida: _ingresoSalida,
-        estadoMaquina: null,
+        estadoMaquina: 'OPERATIVA',  // Valor por defecto válido para el backend
         observaciones: null,
         usuarioId: widget.usuarioId,
       );
@@ -145,56 +145,56 @@ class _RegistroScreenState extends State<RegistroScreen> {
                   Expanded(
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
-                        backgroundColor: _ingresoSalida == 'Ingreso'
+                        backgroundColor: _ingresoSalida == 'INGRESO'  // Corregido
                             ? const Color(0xFF00B11F).withOpacity(0.1)
                             : Colors.white,
-                        foregroundColor: _ingresoSalida == 'Ingreso'
+                        foregroundColor: _ingresoSalida == 'INGRESO'  // Corregido
                             ? const Color(0xFF00B11F)
                             : Colors.grey[600],
                         side: BorderSide(
-                          color: _ingresoSalida == 'Ingreso'
+                          color: _ingresoSalida == 'INGRESO'  // Corregido
                               ? const Color(0xFF00B11F)
                               : Colors.grey.shade300,
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                       onPressed: () =>
-                          setState(() => _ingresoSalida = 'Ingreso'),
+                          setState(() => _ingresoSalida = 'INGRESO'),  // Corregido
                       icon: Icon(
                         Icons.login,
-                        color: _ingresoSalida == 'Ingreso'
+                        color: _ingresoSalida == 'INGRESO'  // Corregido
                             ? const Color(0xFF00B11F)
                             : Colors.grey[600],
                       ),
-                      label: const Text('Ingreso'),
+                      label: const Text('Ingreso'),  // UI text stays friendly
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
-                        backgroundColor: _ingresoSalida == 'Salida'
+                        backgroundColor: _ingresoSalida == 'SALIDA'  // Corregido
                             ? const Color(0xFFDA7A00).withOpacity(0.1)
                             : Colors.white,
-                        foregroundColor: _ingresoSalida == 'Salida'
+                        foregroundColor: _ingresoSalida == 'SALIDA'  // Corregido
                             ? const Color(0xFFDA7A00)
                             : Colors.grey[600],
                         side: BorderSide(
-                          color: _ingresoSalida == 'Salida'
+                          color: _ingresoSalida == 'SALIDA'  // Corregido
                               ? const Color(0xFFDA7A00)
                               : Colors.grey.shade300,
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                       onPressed: () =>
-                          setState(() => _ingresoSalida = 'Salida'),
+                          setState(() => _ingresoSalida = 'SALIDA'),  // Corregido
                       icon: Icon(
                         Icons.logout,
-                        color: _ingresoSalida == 'Salida'
+                        color: _ingresoSalida == 'SALIDA'  // Corregido
                             ? const Color(0xFFDA7A00)
                             : Colors.grey[600],
                       ),
-                      label: const Text('Salida'),
+                      label: const Text('Salida'),  // UI text stays friendly
                     ),
                   ),
                 ],

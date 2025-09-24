@@ -26,6 +26,19 @@ class DatabaseHelper {
     }
   }
 
+  static String _generateReporteId() {
+        final now = DateTime.now();
+        final year = now.year.toString().substring(2); // 25 para 2025
+        final month = now.month.toString().padLeft(2, '0'); // 09 para septiembre
+        final day = now.day.toString().padLeft(2, '0'); // 24 para hoy
+        final hour = now.hour.toString().padLeft(2, '0');
+        final minute = now.minute.toString().padLeft(2, '0');
+        final second = now.second.toString().padLeft(2, '0');
+  
+          return 'RDC$year$month$day$hour$minute$second'; 
+      }
+
+
   static Future<void> logout() async {
     try {
       await _api.post('/auth/logout');
@@ -57,12 +70,12 @@ class DatabaseHelper {
       final response = await _api.post(
         '/ingresos_salidas/',
         body: {
-          'ID_MAQUINA': idMaquina,
+          'pkMaquina': idMaquina,        // Backend espera pkMaquina
           'FECHAHORA': fechahora,
           'INGRESO_SALIDA': ingresoSalida,
-          'ESTADO_MAQUINA': estadoMaquina,
-          'Observaciones': observaciones,
-          'USUARIO_ID': usuarioId,
+          'ESTADO_MAQUINA': estadoMaquina ?? 'OPERATIVA',  // Valor por defecto válido
+          'Observaciones': observaciones ?? '',   // Convertir null a string vacía
+          'pkUsuario': usuarioId,        // Backend espera pkUsuario
         },
       );
 
@@ -99,18 +112,18 @@ class DatabaseHelper {
       final response = await _api.post(
         '/recargas/',
         body: {
-          'ID_MAQUINA': idMaquina,
-          'USUARIO_ID': usuarioId,
+          'pkMaquina': idMaquina,        // Backend espera pkMaquina
+          'pkUsuario': usuarioId,        // Backend espera pkUsuario  
           'OPERADOR_ID': operadorId,
           'FECHAHORA': fechahora,
           'LITROS': litros,
           'OBRA_ID': obraId,
           'CLIENTE_ID': clienteId,
-          'FOTO': foto,
-          'OBSERVACIONES': observaciones,
+          'FOTO': foto ?? '',            // Convertir null a string vacía
+          'OBSERVACIONES': observaciones ?? '',  // Convertir null a string vacía
           'ODOMETRO': odometro,
           'KILOMETROS': kilometros,
-          'PATENTE': patente,
+          'PATENTE': patente ?? '',      // Convertir null a string vacía
         },
       );
       return response;
@@ -298,6 +311,7 @@ class DatabaseHelper {
       final response = await _api.post(
         '/contratos_reportes/',
         body: {
+          'ID_REPORTE': _generateReporteId(),
           'FECHA_REPORTE': fechaReporte,
           'pkMaquina': pkMaquina,
           'MAQUINA': maquinaTxt,

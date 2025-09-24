@@ -1,28 +1,39 @@
 import 'utils/logger.dart';
+import 'package:flutter/foundation.dart';
 
 class AppConfig {
-  // Lee BASE_URL desde --dart-define, con valor por defecto
-  static const String baseUrl = String.fromEnvironment(
-    'BASE_URL',
-    defaultValue: 'https://harchaback-production.up.railway.app', // URL de producción por defecto
-  );
-
   // URLs para diferentes entornos
-  static const String devUrl = 'http://127.0.0.1:5000';
-  static const String androidEmulatorUrl =
-      'http://10.0.2.2:5000'; // Para emulador Android
-  static const String iosSimulatorUrl =
-      'http://localhost:5000'; // Para iOS simulator
-  static const String prodUrl =
-      'https://harchaback-production.up.railway.app'; // URL de producción en Railway
+  static const String devUrl = 'http://localhost:5000';
+  static const String androidEmulatorUrl = 'http://10.0.2.2:5000'; 
+  static const String iosSimulatorUrl = 'http://localhost:5000'; 
+  static const String prodUrl = 'https://harchaback-production.up.railway.app';
+
+  // Lee BASE_URL desde --dart-define
+  static const String _envBaseUrl = String.fromEnvironment('BASE_URL', defaultValue: '');
 
   // Método para obtener la URL apropiada según el entorno
   static String getApiUrl() {
-    try {
-      SafeLogger.info('🌐 Using API URL: $baseUrl');
-    } catch (e) {
-      SafeLogger.error('Error in config print', e);
+    String apiUrl;
+
+    // Si se especifica BASE_URL en --dart-define, usarla
+    if (_envBaseUrl.isNotEmpty) {
+      apiUrl = _envBaseUrl;
+      SafeLogger.info('🌐 Using BASE_URL from dart-define: $apiUrl');
     }
-    return baseUrl;
+    // Si está en modo debug (desarrollo local), usar URL local
+    else if (kDebugMode) {
+      apiUrl = devUrl;
+      SafeLogger.info('🔧 Development mode - Using local URL: $apiUrl');
+    }
+    // Si está en modo release (producción), usar Railway
+    else {
+      apiUrl = prodUrl;
+      SafeLogger.info('🚀 Production mode - Using Railway URL: $apiUrl');
+    }
+
+    return apiUrl;
   }
+
+  // Para compatibilidad con código existente
+  static String get baseUrl => getApiUrl();
 }

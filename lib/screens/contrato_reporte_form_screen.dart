@@ -3,9 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:http/http.dart' as http;
 import '../services/database_helper.dart';
-import '../config.dart';
 
 class ContratoReporteFormScreen extends StatefulWidget {
   final int usuarioId;
@@ -139,22 +137,11 @@ class _ContratoReporteFormScreenState extends State<ContratoReporteFormScreen> {
     });
 
     try {
-      final response = await http.get(
-        Uri.parse('${AppConfig.getApiUrl()}/contratos?maquina_id=$maquinaId'),
-        headers: widget.token != null
-            ? {'Authorization': 'Bearer ${widget.token}'}
-            : {},
-      );
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
-        setState(() {
-          _contratosFiltrados = List<Map<String, dynamic>>.from(data);
-          _loadingContratos = false;
-        });
-      } else {
-        throw Exception('Error al cargar contratos');
-      }
+      final contratos = await DatabaseHelper.obtenerContratosPorMaquina(maquinaId);
+      setState(() {
+        _contratosFiltrados = contratos;
+        _loadingContratos = false;
+      });
     } catch (e) {
       setState(() {
         _loadingContratos = false;
@@ -305,6 +292,8 @@ class _ContratoReporteFormScreenState extends State<ContratoReporteFormScreen> {
       final kmFinal = double.tryParse(_kmFinalController.text) ?? 0;
       final kilometros = kmFinal - kmInicial;
 
+      
+
       // Datos para enviar al servidor
       final resultado = await DatabaseHelper.registrarContratoReporte(
         fechaReporte: _fechaReporte.toIso8601String(),
@@ -349,6 +338,7 @@ class _ContratoReporteFormScreenState extends State<ContratoReporteFormScreen> {
     }
   }
 
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -443,9 +433,9 @@ class _ContratoReporteFormScreenState extends State<ContratoReporteFormScreen> {
                                   : _contratos)
                               .map((contrato) {
                                 return DropdownMenuItem<int>(
-                                  value: contrato['pkContrato'],
+                                  value: contrato['id'],
                                   child: Text(
-                                    contrato['NOMBRE_CONTRATO'] ?? '',
+                                    '${contrato['nombre']} - ${contrato['obra_nombre']}',
                                   ),
                                 );
                               })
