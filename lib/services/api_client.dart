@@ -81,7 +81,13 @@ class ApiClient {
   // Maneja las respuestas HTTP
   dynamic _handleResponse(http.Response response) async {
     final statusCode = response.statusCode;
-
+    if (response.headers['content-type']?.contains('text/html') == true) {
+      if (statusCode == 200) {
+        return response.body;
+      } else {
+        throw Exception('Error $statusCode: ${response.body}');
+      }
+    }
     try {
       // Verificar si la respuesta está vacía
       if (response.body.isEmpty) {
