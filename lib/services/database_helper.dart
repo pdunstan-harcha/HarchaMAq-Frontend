@@ -439,7 +439,7 @@ class DatabaseHelper {
     }
   }
 
-  static Future<String> obtenerReciboRecargaHtml(String recargaId) async {
+  static Future<String> obtenerReciboRecargaHtml(int recargaId) async {
     try {
       final response = await _api.get(
         '/recargas/$recargaId/recibo',

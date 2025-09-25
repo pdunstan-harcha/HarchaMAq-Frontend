@@ -33,6 +33,7 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
       setState(() {
         _recargas = recargas.map((recarga) {
           return {
+            'id': recarga['id'],
             'ID_RECARGA': recarga['codigo'] ?? 'Sin código',
             'FECHA': recarga['fecha'] ?? recarga['fechahora_recarga'],
             'LITROS': recarga['litros'],
@@ -135,19 +136,6 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
       return fecha.toString();
     } catch (e) {
       return fecha.toString();
-    }
-  }
-
-  Future<void> _imprimirReciboRecarga(
-      BuildContext context, String idRecarga) async {
-    try {
-      final htmlRecibido =
-          await DatabaseHelper.obtenerReciboRecargaHtml(idRecarga);
-      _imprimirReciboRecarga(context, htmlRecibido);
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al obtener recibo: $e')),
-      );
     }
   }
 
@@ -289,7 +277,7 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
                                       try {
                                         final htmlRecibo = await DatabaseHelper
                                             .obtenerReciboRecargaHtml(
-                                                recarga['ID_RECARGA']);
+                                                recarga['id']);
                                         await _imprimirConPrinterPlus(
                                             context, htmlRecibo);
                                       } catch (e) {
