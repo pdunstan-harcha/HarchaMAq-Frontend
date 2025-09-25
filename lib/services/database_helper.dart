@@ -27,17 +27,16 @@ class DatabaseHelper {
   }
 
   static String _generateReporteId() {
-        final now = DateTime.now();
-        final year = now.year.toString().substring(2); // 25 para 2025
-        final month = now.month.toString().padLeft(2, '0'); // 09 para septiembre
-        final day = now.day.toString().padLeft(2, '0'); // 24 para hoy
-        final hour = now.hour.toString().padLeft(2, '0');
-        final minute = now.minute.toString().padLeft(2, '0');
-        final second = now.second.toString().padLeft(2, '0');
-  
-          return 'RDC$year$month$day$hour$minute$second'; 
-      }
+    final now = DateTime.now();
+    final year = now.year.toString().substring(2); // 25 para 2025
+    final month = now.month.toString().padLeft(2, '0'); // 09 para septiembre
+    final day = now.day.toString().padLeft(2, '0'); // 24 para hoy
+    final hour = now.hour.toString().padLeft(2, '0');
+    final minute = now.minute.toString().padLeft(2, '0');
+    final second = now.second.toString().padLeft(2, '0');
 
+    return 'RDC$year$month$day$hour$minute$second';
+  }
 
   static Future<void> logout() async {
     try {
@@ -52,9 +51,107 @@ class DatabaseHelper {
   static Future<List<Map<String, dynamic>>> obtenerIngresosSalidas() async {
     try {
       final response = await _api.get('/ingresos_salidas/');
-      return List<Map<String, dynamic>>.from(response['data'] ?? response);
+
+      // Procesar la respuesta con la nueva estructura del backend
+      final List<dynamic> rawData = response['data'] ?? [];
+      return rawData.map<Map<String, dynamic>>((item) {
+        return <String, dynamic>{
+          // Datos principales del movimiento
+          'id': item['id'],
+          'codigo': item['codigo'] ?? '',
+          'fechahora': item['fechahora'] ?? '',
+          'ingreso_salida': item['ingreso_salida'] ?? '',
+          'tiempo': item['tiempo'],
+          'tiempo_formateado': item['tiempo_formateado'] ?? '',
+          'fechahora_ultimo': item['fechahora_ultimo'],
+          'estado_maquina': item['estado_maquina'],
+          'observaciones': item['observaciones'],
+          'usuario_id': item['usuario_id'],
+
+          // Datos de la máquina (con JOIN)
+          'maquina_id': item['maquina_id'],
+          'maquina': item['maquina'] ?? '',
+          'maquina_codigo': item['maquina_codigo'] ?? '',
+
+          // Datos adicionales
+          'usuario_nombre': item['usuario_nombre'],
+          'editar_fecha': item['editar_fecha'],
+          'fecha_editada': item['fecha_editada'],
+          'puede_modificar_fecha': item['puede_modificar_fecha'] ?? false,
+          'movimiento_anterior_texto': item['movimiento_anterior_texto'],
+        };
+      }).toList();
     } catch (e) {
+      SafeLogger.error('Error al obtener ingresos/salidas', e);
+      if (e.toString().contains('500') ||
+          e.toString().contains('Internal Server Error')) {
+        throw Exception(
+            'Error temporal del servidor. Intente nuevamente en unos momentos.');
+      }
       throw Exception('Error al obtener ingresos/salidas: $e');
+    }
+  }
+
+  // Método con soporte para paginación
+  static Future<Map<String, dynamic>> obtenerIngresosSalidasPaginado({
+    int page = 1,
+    int perPage = 20,
+    String search = '',
+  }) async {
+    try {
+      String endpoint = '/ingresos_salidas/?page=$page&per_page=$perPage';
+
+      if (search.isNotEmpty) {
+        endpoint += '&search=${Uri.encodeComponent(search)}';
+      }
+
+      final response = await _api.get(endpoint);
+
+      // Procesar los datos con la estructura actualizada
+      final List<dynamic> rawData = response['data'] ?? [];
+      final processedData = rawData.map<Map<String, dynamic>>((item) {
+        return <String, dynamic>{
+          // Datos principales del movimiento (campos originales del CSV)
+          'id': item['id'],
+          'codigo': item['codigo'] ?? '',
+          'FECHAHORA': item['fechahora'] ?? '', // Mapeo al nombre original
+          'INGRESO_SALIDA':
+              item['ingreso_salida'] ?? '', // Mapeo al nombre original
+          'TIEMPO': item['tiempo'], // TIEMPO TRANSCURRIDO original
+          'tiempo_formateado': item['tiempo_formateado'] ?? '',
+          'FECHAHORA_ULTIMO':
+              item['fechahora_ultimo'], // Mapeo al nombre original
+          'ESTADO_MAQUINA': item['estado_maquina'], // NUEVO ESTADO original
+          'Observaciones': item['observaciones'], // Mapeo al nombre original
+          'USUARIO_ID': item['usuario_id'], // Mapeo al nombre original
+
+          // Datos de la máquina (con JOIN)
+          'maquina_id': item['maquina_id'],
+          'MAQUINA': item['maquina'] ?? '', // Mapeo al nombre original
+          'maquina_codigo': item['maquina_codigo'] ?? '',
+
+          // Datos adicionales
+          'usuario_nombre': item['usuario_nombre'],
+          'editar_fecha': item['editar_fecha'],
+          'fecha_editada': item['fecha_editada'],
+          'puede_modificar_fecha': item['puede_modificar_fecha'] ?? false,
+          'movimiento_anterior_texto': item['movimiento_anterior_texto'],
+        };
+      }).toList();
+
+      return {
+        'success': response['success'] ?? true,
+        'data': processedData,
+        'pagination': response['pagination'] ?? {},
+      };
+    } catch (e) {
+      SafeLogger.error('Error al obtener ingresos/salidas paginado', e);
+      if (e.toString().contains('500') ||
+          e.toString().contains('Internal Server Error')) {
+        throw Exception(
+            'Error temporal del servidor. Intente nuevamente en unos momentos.');
+      }
+      throw Exception('Error al obtener ingresos/salidas paginado: $e');
     }
   }
 
@@ -70,12 +167,13 @@ class DatabaseHelper {
       final response = await _api.post(
         '/ingresos_salidas/',
         body: {
-          'pkMaquina': idMaquina,        // Backend espera pkMaquina
+          'pkMaquina': idMaquina, // Backend espera pkMaquina
           'FECHAHORA': fechahora,
           'INGRESO_SALIDA': ingresoSalida,
-          'ESTADO_MAQUINA': estadoMaquina ?? 'OPERATIVA',  // Valor por defecto válido
-          'Observaciones': observaciones ?? '',   // Convertir null a string vacía
-          'pkUsuario': usuarioId,        // Backend espera pkUsuario
+          'ESTADO_MAQUINA':
+              estadoMaquina ?? 'OPERATIVA', // Valor por defecto válido
+          'Observaciones': observaciones ?? '', // Convertir null a string vacía
+          'pkUsuario': usuarioId, // Backend espera pkUsuario
         },
       );
 
@@ -112,18 +210,18 @@ class DatabaseHelper {
       final response = await _api.post(
         '/recargas/',
         body: {
-          'pkMaquina': idMaquina,        // Backend espera pkMaquina
-          'pkUsuario': usuarioId,        // Backend espera pkUsuario  
+          'pkMaquina': idMaquina, // Backend espera pkMaquina
+          'pkUsuario': usuarioId, // Backend espera pkUsuario
           'OPERADOR_ID': operadorId,
           'FECHAHORA': fechahora,
           'LITROS': litros,
           'OBRA_ID': obraId,
           'CLIENTE_ID': clienteId,
-          'FOTO': foto ?? '',            // Convertir null a string vacía
-          'OBSERVACIONES': observaciones ?? '',  // Convertir null a string vacía
+          'FOTO': foto ?? '', // Convertir null a string vacía
+          'OBSERVACIONES': observaciones ?? '', // Convertir null a string vacía
           'ODOMETRO': odometro,
           'KILOMETROS': kilometros,
-          'PATENTE': patente ?? '',      // Convertir null a string vacía
+          'PATENTE': patente ?? '', // Convertir null a string vacía
         },
       );
       return response;
@@ -170,10 +268,11 @@ class DatabaseHelper {
     }
   }
 
-   static Future<List<Map<String, dynamic>>> obtenerOperadoresMaquina(int maquinaId) async {
+  static Future<List<Map<String, dynamic>>> obtenerOperadoresMaquina(
+      int maquinaId) async {
     try {
       final response = await _api.get('/maquinas/$maquinaId/operadores');
-      
+
       if (response['success'] == true) {
         final List<dynamic> rawData = response['data'] ?? [];
         return rawData.map<Map<String, dynamic>>((item) {
@@ -186,22 +285,20 @@ class DatabaseHelper {
           };
         }).toList();
       }
-      
+
       return [];
     } catch (e) {
       SafeLogger.error('ERROR obteniendo operadores de máquina $maquinaId', e);
-      return []; 
+      return [];
     }
   }
 
-  
   static Future<List<Map<String, dynamic>>> obtenerContratosPorMaquina(
     int maquinaId,
   ) async {
     try {
       final response = await _api.get('/contratos/?maquina_id=$maquinaId');
 
-    
       final List<dynamic> rawData = response['data'] ?? [];
       return rawData.map<Map<String, dynamic>>((item) {
         return <String, dynamic>{
@@ -227,14 +324,13 @@ class DatabaseHelper {
     try {
       final response = await _api.get('/obras/');
 
-      
       final List<dynamic> rawData = response['data'] ?? [];
       return rawData.map<Map<String, dynamic>>((item) {
         return <String, dynamic>{
-          'pkObra': item['pkObra'] ?? item['id'], 
+          'pkObra': item['pkObra'] ?? item['id'],
           'ID_OBRA': item['ID_OBRA'] ?? item['id_obra'] ?? '',
-          'OBRA': item['OBRA'] ?? item['nombre'] ?? '', 
-          'nombre': item['nombre'] ?? item['OBRA'] ?? '', 
+          'OBRA': item['OBRA'] ?? item['nombre'] ?? '',
+          'nombre': item['nombre'] ?? item['OBRA'] ?? '',
         };
       }).toList();
     } catch (e) {
@@ -250,9 +346,9 @@ class DatabaseHelper {
       final List<dynamic> rawData = response['data'] ?? [];
       return rawData.map<Map<String, dynamic>>((item) {
         return <String, dynamic>{
-          'pkCliente': item['pkCliente'] ?? item['id'], 
+          'pkCliente': item['pkCliente'] ?? item['id'],
           'ID_CLIENTE': item['ID_CLIENTE'] ?? item['id_cliente'] ?? '',
-          'CLIENTE': item['CLIENTE'] ?? item['nombre'] ?? '', 
+          'CLIENTE': item['CLIENTE'] ?? item['nombre'] ?? '',
           'RUT': item['RUT'] ?? item['rut'] ?? '',
           'nombre': item['nombre'] ?? item['CLIENTE'] ?? '',
         };

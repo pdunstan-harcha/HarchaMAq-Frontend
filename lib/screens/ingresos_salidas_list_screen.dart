@@ -8,7 +8,8 @@ enum Orden { fechaDesc, fechaAsc, ingresoPrimero, salidaPrimero }
 class IngresosSalidasListScreen extends StatefulWidget {
   final int usuarioId;
   final String usuarioNombre;
-  const IngresosSalidasListScreen({super.key, required this.usuarioId, this.usuarioNombre = ''});
+  const IngresosSalidasListScreen(
+      {super.key, required this.usuarioId, this.usuarioNombre = ''});
 
   @override
   _IngresosSalidasListScreenState createState() =>
@@ -20,6 +21,15 @@ class _IngresosSalidasListScreenState extends State<IngresosSalidasListScreen> {
   bool isLoading = true;
   Orden ordenActual = Orden.fechaDesc;
 
+  // Variables para paginación
+  int currentPage = 1;
+  int totalPages = 1;
+  int totalRecords = 0;
+  bool hasNextPage = false;
+  bool hasPrevPage = false;
+  final int recordsPerPage = 20;
+  String searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -27,12 +37,27 @@ class _IngresosSalidasListScreenState extends State<IngresosSalidasListScreen> {
     fetchRegistros();
   }
 
-  Future<void> fetchRegistros() async {
+  Future<void> fetchRegistros({int page = 1, String search = ''}) async {
     try {
-      final data = await DatabaseHelper.obtenerIngresosSalidas();
+      setState(() => isLoading = true);
+
+      final result = await DatabaseHelper.obtenerIngresosSalidasPaginado(
+        page: page,
+        perPage: recordsPerPage,
+        search: search,
+      );
+
       if (mounted) {
+        final pagination = result['pagination'] as Map<String, dynamic>? ?? {};
+
         setState(() {
-          registros = data;
+          registros = result['data'] as List<dynamic>? ?? [];
+          currentPage = pagination['page'] ?? 1;
+          totalPages = pagination['total_pages'] ?? 1;
+          totalRecords = pagination['total'] ?? 0;
+          hasNextPage = pagination['has_next'] ?? false;
+          hasPrevPage = pagination['has_prev'] ?? false;
+          searchQuery = search;
           ordenarRegistros();
           isLoading = false;
         });
@@ -43,6 +68,12 @@ class _IngresosSalidasListScreenState extends State<IngresosSalidasListScreen> {
         setState(() {
           isLoading = false;
         });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cargar datos: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
@@ -88,18 +119,29 @@ class _IngresosSalidasListScreenState extends State<IngresosSalidasListScreen> {
       builder: (context) {
         return AlertDialog(
           title: Text(
-            '${registro['maquina_nombre'] ?? 'Sin máquina'} (${registro['ingreso_salida']})',
+            '${registro['maquina'] ?? 'Sin máquina'} (${registro['ingreso_salida']})',
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Código: ${registro['codigo'] ?? '-'}'),
-              Text('Fecha y hora: ${registro['fechahora']}'),
-              Text('Estado: ${registro['estado_maquina']}'),
-              Text('Operador: ${registro['usuario_nombre'] ?? 'Sin operador'}'),
-              Text('Observaciones: ${registro['observaciones'] ?? "-"}'),
-              Text('ID: ${registro['id']}'),
+              Text('Fecha y hora: ${registro['FECHAHORA']}'),
+              if (registro['tiempo_formateado'] != null)
+                Text('Tiempo transcurrido: ${registro['tiempo_formateado']}'),
+              if (registro['fechahora_ultimo'] != null)
+                Text(
+                    'Fecha último movimiento: ${registro['fechahora_ultimo']}'),
+              Text('Estado máquina: ${registro['ESTADO_MAQUINA'] ?? '-'}'),
+              Text('Usuario: ${registro['usuario_nombre'] ?? 'Sin usuario'}'),
+              if (registro['observaciones'] != null)
+                Text('Observaciones: ${registro['observaciones']}'),
+              if (registro['movimiento_anterior_texto'] != null)
+                Text(
+                    'Movimiento anterior: ${registro['movimiento_anterior_texto']}'),
+              const SizedBox(height: 8),
+              Text('ID: ${registro['id']}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey)),
             ],
           ),
           actions: [
@@ -111,6 +153,7 @@ class _IngresosSalidasListScreenState extends State<IngresosSalidasListScreen> {
         );
       },
     );
+    print('Registro en modal: $registro');
   }
 
   Color getTipoColor(String tipo) {
@@ -120,24 +163,30 @@ class _IngresosSalidasListScreenState extends State<IngresosSalidasListScreen> {
     return Colors.grey.shade200;
   }
 
-  void _navigateToRegistro() async{
+  void _navigateToRegistro() async {
     try {
-      
       final result = await Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => RegistroScreen(usuarioId: widget.usuarioId
+        MaterialPageRoute(
+          builder: (context) => RegistroScreen(usuarioId: widget.usuarioId),
         ),
-        ),
-        );
-        if(result == true){
-          fetchRegistros();
-        }
-    }catch(e){
+      );
+      if (result == true) {
+        fetchRegistros();
+      }
+    } catch (e) {
       SafeLogger.error('Error al navegar a RegistroScreen', e);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al abrir el registro: ${e.toString()}'),
-      backgroundColor: Colors.red,
-        ));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Error al abrir el registro: ${e.toString()}'),
+        backgroundColor: Colors.red,
+      ));
     }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
@@ -145,6 +194,41 @@ class _IngresosSalidasListScreenState extends State<IngresosSalidasListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Ingresos y Salidas'),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Buscar por máquina, usuario...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                    onSubmitted: (value) {
+                      fetchRegistros(page: 1, search: value);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: () {
+                    _searchController.clear();
+                    fetchRegistros(page: 1, search: '');
+                  },
+                  icon: const Icon(Icons.clear),
+                ),
+              ],
+            ),
+          ),
+        ),
         actions: [
           PopupMenuButton<Orden>(
             icon: const Icon(Icons.sort),
@@ -175,48 +259,145 @@ class _IngresosSalidasListScreenState extends State<IngresosSalidasListScreen> {
           ),
         ],
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              itemCount: registros.length,
-              itemBuilder: (context, index) {
-                final registro = registros[index];
-                final tipoNorm = (registro['ingreso_salida'] ?? '')
-                    .toString()
-                    .toUpperCase()
-                    .trim();
-                final esIngreso = tipoNorm == 'INGRESO';
-                return Card(
-                  color: getTipoColor(registro['ingreso_salida'] ?? ''),
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
+      body: Column(
+        children: [
+          // Información de paginación
+          if (!isLoading)
+            Container(
+              padding: const EdgeInsets.all(8.0),
+              color: Colors.grey.shade100,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Total: $totalRecords registros',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  child: ListTile(
-                    leading: Icon(
-                      esIngreso ? Icons.arrow_upward : Icons.arrow_downward,
-                      color: esIngreso ? Colors.green : Colors.red,
-                      size: 32,
-                    ),
-                    title: Text(
-                      registro['maquina_nombre'] ?? 'Sin nombre',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text(
-                      'Fecha: ${registro['fechahora']}\nEstado: ${registro['estado_maquina']}',
-                    ),
-                    trailing: Text(
-                      tipoNorm,
-                      style: TextStyle(
-                        color: esIngreso ? Colors.green : Colors.red,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    onTap: () => showDetalleModal(registro),
+                  Text(
+                    'Página $currentPage de $totalPages',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                );
-              },
+                ],
+              ),
             ),
+
+          // Lista de registros
+          Expanded(
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : registros.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No se encontraron registros',
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: registros.length,
+                        itemBuilder: (context, index) {
+                          final registro = registros[index];
+                          print('Registro en lista: $registro');
+                          final tipoNorm = (registro['ingreso_salida'] ?? '')
+                              .toString()
+                              .toUpperCase()
+                              .trim();
+                          final esIngreso = tipoNorm == 'INGRESO';
+                          return Card(
+                            color:
+                                getTipoColor(registro['ingreso_salida'] ?? ''),
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            child: ListTile(
+                              leading: Icon(
+                                esIngreso
+                                    ? Icons.arrow_upward
+                                    : Icons.arrow_downward,
+                                color: esIngreso ? Colors.green : Colors.red,
+                                size: 32,
+                              ),
+                              title: Text(
+                                registro['MAQUINA'] ?? 'Sin nombre',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Fecha: ${registro['FECHAHORA']}'),
+                                  if (registro['ESTADO_MAQUINA'] != null)
+                                    Text(
+                                        'Estado: ${registro['ESTADO_MAQUINA']}'),
+                                  if (registro['tiempo_formateado'] != null)
+                                    Text(
+                                        'Tiempo: ${registro['tiempo_formateado']}',
+                                        style: TextStyle(
+                                            color: Colors.blue.shade600)),
+                                  if (registro['usuario_nombre'] != null)
+                                    Text(
+                                        'Usuario: ${registro['usuario_nombre']}',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey.shade600)),
+                                ],
+                              ),
+                              trailing: Text(
+                                tipoNorm,
+                                style: TextStyle(
+                                  color: esIngreso ? Colors.green : Colors.red,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              onTap: () => showDetalleModal(registro),
+                            ),
+                          );
+                        },
+                      ),
+          ),
+
+          // Controles de paginación
+          if (!isLoading && totalPages > 1)
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    onPressed: hasPrevPage
+                        ? () => fetchRegistros(
+                            page: currentPage - 1, search: searchQuery)
+                        : null,
+                    icon: const Icon(Icons.chevron_left),
+                  ),
+                  TextButton(
+                    onPressed: currentPage > 1
+                        ? () => fetchRegistros(page: 1, search: searchQuery)
+                        : null,
+                    child: const Text('Primera'),
+                  ),
+                  const SizedBox(width: 16),
+                  Text('$currentPage / $totalPages'),
+                  const SizedBox(width: 16),
+                  TextButton(
+                    onPressed: currentPage < totalPages
+                        ? () => fetchRegistros(
+                            page: totalPages, search: searchQuery)
+                        : null,
+                    child: const Text('Última'),
+                  ),
+                  IconButton(
+                    onPressed: hasNextPage
+                        ? () => fetchRegistros(
+                            page: currentPage + 1, search: searchQuery)
+                        : null,
+                    icon: const Icon(Icons.chevron_right),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _navigateToRegistro,
         backgroundColor: Colors.blue,
