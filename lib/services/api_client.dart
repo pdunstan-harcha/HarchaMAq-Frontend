@@ -22,11 +22,21 @@ class ApiClient {
   }
 
   // GET request
-  Future<dynamic> get(String endpoint) async {
+  Future<dynamic> get(
+    String endpoint, {
+    Map<String, String>? extraHeaders,
+  }) async {
     try {
+      final baseHeaders = await _getAuthHeaders();
+
+      final headers = {
+        ...baseHeaders,
+        if (extraHeaders != null) ...extraHeaders,
+      };
+
       final response = await http.get(
         Uri.parse('$_baseUrl$endpoint'),
-        headers: await _getAuthHeaders(),
+        headers: headers,
       );
       return _handleResponse(response);
     } catch (e) {

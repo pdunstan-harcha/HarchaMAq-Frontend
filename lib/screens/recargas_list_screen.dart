@@ -1,5 +1,7 @@
+import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter/material.dart';
 import 'package:harcha_maquinaria/services/database_helper.dart';
+import 'dart:convert';
 
 class RecargasListScreen extends StatefulWidget {
   const RecargasListScreen({super.key});
@@ -136,6 +138,39 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
     }
   }
 
+  Future<void> _imprimirReciboRecarga(
+      BuildContext context, String idRecarga) async {
+    try {
+      final htmlRecibido =
+          await DatabaseHelper.obtenerReciboRecargaHtml(idRecarga);
+      _imprimirReciboRecarga(context, htmlRecibido);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al obtener recibo: $e')),
+      );
+    }
+  }
+
+  Future<void> _imprimirConPrinterPlus(
+      BuildContext context, String htmlRecibo) async {
+    try {
+      final intent = AndroidIntent(
+        action: 'android.intent.action.SEND',
+        package: 'com.printerplus.mobile',
+        type: 'text/html',
+        arguments: <String, dynamic>{
+          'android.intent.extra.TEXT': htmlRecibo,
+        },
+      );
+      await intent.launch();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al imprimir recibo: $e')),
+      );
+    }
+    return;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -153,100 +188,129 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Error al cargar datos',
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _error!,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _cargarRecargas,
-                    child: const Text('Reintentar'),
-                  ),
-                ],
-              ),
-            )
-          : _recargas.isEmpty
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.local_gas_station_outlined,
-                    size: 64,
-                    color: Colors.grey,
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'No hay recargas registradas',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                ],
-              ),
-            )
-          : RefreshIndicator(
-              onRefresh: _cargarRecargas,
-              child: ListView.builder(
-                padding: const EdgeInsets.all(8.0),
-                itemCount: _recargas.length,
-                itemBuilder: (context, index) {
-                  final recarga = _recargas[index];
-                  return Card(
-                    margin: const EdgeInsets.symmetric(
-                      vertical: 4.0,
-                      horizontal: 8.0,
-                    ),
-                    child: ListTile(
-                      leading: const CircleAvatar(
-                        backgroundColor: Color(0xFF1E3A8A),
-                        child: Icon(
-                          Icons.local_gas_station,
-                          color: Colors.white,
-                        ),
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline,
+                          size: 64, color: Colors.red),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Error al cargar datos',
+                        style: Theme.of(context).textTheme.headlineSmall,
                       ),
-                      title: Text(
-                        recarga['ID_RECARGA'] ?? 'Sin código',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E3A8A),
-                        ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _error!,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(
+                          context,
+                        )
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(color: Colors.grey[600]),
                       ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _cargarRecargas,
+                        child: const Text('Reintentar'),
+                      ),
+                    ],
+                  ),
+                )
+              : _recargas.isEmpty
+                  ? const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            'Máquina: ${recarga['NOMBRE_MAQUINA'] ?? 'N/A'}',
-                            style: const TextStyle(fontSize: 14),
+                          Icon(
+                            Icons.local_gas_station_outlined,
+                            size: 64,
+                            color: Colors.grey,
                           ),
+                          SizedBox(height: 16),
                           Text(
-                            'Litros: ${recarga['LITROS']} L - ${_formatearFecha(recarga['FECHA'])}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
+                            'No hay recargas registradas',
+                            style: TextStyle(fontSize: 18, color: Colors.grey),
                           ),
                         ],
                       ),
-                      trailing: const Icon(Icons.arrow_forward_ios),
-                      onTap: () => _mostrarDetalleRecarga(recarga),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _cargarRecargas,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(8.0),
+                        itemCount: _recargas.length,
+                        itemBuilder: (context, index) {
+                          final recarga = _recargas[index];
+                          return Card(
+                            margin: const EdgeInsets.symmetric(
+                              vertical: 4.0,
+                              horizontal: 8.0,
+                            ),
+                            child: ListTile(
+                              leading: const CircleAvatar(
+                                backgroundColor: Color(0xFF1E3A8A),
+                                child: Icon(
+                                  Icons.local_gas_station,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              title: Text(
+                                recarga['ID_RECARGA'] ?? 'Sin código',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1E3A8A),
+                                ),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Máquina: ${recarga['NOMBRE_MAQUINA'] ?? 'N/A'}',
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                  Text(
+                                    'Litros: ${recarga['LITROS']} L - ${_formatearFecha(recarga['FECHA'])}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    icon: Icon(Icons.print, color: Colors.blue),
+                                    tooltip: 'Imprimir recibo',
+                                    onPressed: () async {
+                                      try {
+                                        final htmlRecibo = await DatabaseHelper
+                                            .obtenerReciboRecargaHtml(
+                                                recarga['ID_RECARGA']);
+                                        await _imprimirConPrinterPlus(
+                                            context, htmlRecibo);
+                                      } catch (e) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                              content: Text(
+                                                  'Error al obtener recibo: $e')),
+                                        );
+                                      }
+                                    },
+                                  ),
+                                  const Icon(Icons.arrow_forward_ios),
+                                ],
+                              ),
+                              onTap: () => _mostrarDetalleRecarga(recarga),
+                            ),
+                          );
+                        },
+                      ),
                     ),
-                  );
-                },
-              ),
-            ),
     );
   }
 }

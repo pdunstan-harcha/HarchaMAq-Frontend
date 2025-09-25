@@ -1,5 +1,8 @@
 import 'package:harcha_maquinaria/services/api_client.dart';
 import 'package:harcha_maquinaria/services/secure_storage.dart';
+import 'package:http/http.dart' as http;
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:flutter/material.dart';
 import '../utils/logger.dart';
 
 class DatabaseHelper {
@@ -433,6 +436,28 @@ class DatabaseHelper {
       return response;
     } catch (e) {
       return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  static Future<String> obtenerReciboRecargaHtml(String recargaId) async {
+    try {
+      final response = await _api.get(
+        '/recargas/$recargaId/recibo',
+        extraHeaders: {
+          'Accept': 'text/html', // Forzamos que el backend devuelva HTML
+        },
+      );
+
+      if (response is String && response.isNotEmpty) {
+        return response;
+      } else if (response['success'] == false) {
+        throw Exception('Error desde backend: ${response['message']}');
+      } else {
+        throw Exception('Respuesta inválida al obtener recibo.');
+      }
+    } catch (e) {
+      SafeLogger.error('Error al obtener recibo de recarga $recargaId', e);
+      throw Exception('Error al obtener recibo: $e');
     }
   }
 }
