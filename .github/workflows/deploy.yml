@@ -1,4 +1,4 @@
-name: Deploy Flutter PWA to Vercel
+name: Deploy Flutter PWA
 
 on:
   push:
@@ -30,13 +30,13 @@ jobs:
     - name: Build Flutter Web PWA
       run: flutter build web --release --dart-define=BASE_URL=${{ secrets.BASE_URL }}
       
-    - name: Install Vercel CLI
-      run: npm install --global vercel@latest
-      
-    - name: Pull Vercel Environment Information
-      run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-      working-directory: ./build/web
-      
-    - name: Deploy to Vercel Production
-      run: vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
+    - name: Install Firebase CLI
+      run: npm install --global firebase-tools
+
+    # - name: Pull Firebase Environment Information
+    #   run: firebase functions:config:get > .runtimeconfig.json
+    #   working-directory: ./build/web
+
+    - name: Deploy to Firebase Hosting
+      run: firebase deploy --only hosting --token=${{ secrets.FIREBASE_TOKEN }}  --project 982164175631 --public build/web
       working-directory: ./build/web

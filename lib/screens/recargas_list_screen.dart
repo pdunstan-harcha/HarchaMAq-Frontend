@@ -1,7 +1,9 @@
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:harcha_maquinaria/services/database_helper.dart';
 import 'dart:convert';
+import 'dart:html' as html;
 
 class RecargasListScreen extends StatefulWidget {
   const RecargasListScreen({super.key});
@@ -159,6 +161,17 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
     return;
   }
 
+  void imprimirReciboPOS(String htmlRecibo) {
+    if (kIsWeb) {
+      final encoded = Uri.encodeComponent(htmlRecibo);
+      final url = 'printerplus://send?text=$encoded';
+      html.window.location.href = url;
+    } else {
+      // Aquí puedes mostrar un mensaje o usar otro método de impresión
+      print('Impresión POS solo disponible en Web/PWA con Printer+');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -278,8 +291,12 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
                                         final htmlRecibo = await DatabaseHelper
                                             .obtenerReciboRecargaHtml(
                                                 recarga['id']);
-                                        await _imprimirConPrinterPlus(
-                                            context, htmlRecibo);
+                                        if (kIsWeb) {
+                                          imprimirReciboPOS(htmlRecibo);
+                                        } else {
+                                          await _imprimirConPrinterPlus(
+                                              context, htmlRecibo);
+                                        }
                                       } catch (e) {
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(
