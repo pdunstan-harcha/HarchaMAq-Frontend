@@ -224,7 +224,9 @@ class DatabaseHelper {
           'OBSERVACIONES': observaciones ?? '', // Convertir null a string vacía
           'ODOMETRO': odometro,
           'KILOMETROS': kilometros,
-          'PATENTE': patente ?? '', // Convertir null a string vacía
+          'PATENTE': patente ?? '',
+          'OBRA': obraId ?? '',
+          'CLIENTE': clienteId ?? '',
         },
       );
       return response;

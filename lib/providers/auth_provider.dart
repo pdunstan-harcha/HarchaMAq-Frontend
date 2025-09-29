@@ -21,8 +21,11 @@ class AuthProvider with ChangeNotifier {
 
     try {
       final token = await SecureStorage.getToken();
-      _isAuthenticated = token != null;
+      if (token != null) {
+        _isAuthenticated = true;
+      }
     } catch (e) {
+      SafeLogger.error('Error checking auth', e);
       _isAuthenticated = false;
       _user = null;
     }
@@ -39,16 +42,16 @@ class AuthProvider with ChangeNotifier {
     try {
       final result = await DatabaseHelper.login(usuario, password);
 
-      if (result != null) {
+      if (result != null && result['success'] == true) {
         // Guardar toda la información del usuario del backend
-        _user =
-            result['user'] ??
+        _user = result['user'] ??
             {
               'NOMBREUSUARIO': usuario,
               'pkUsuario': result['user_id'] ?? 1,
               'username': usuario,
             };
         _isAuthenticated = true;
+        notifyListeners();
         _isLoading = false;
         notifyListeners();
         return true;

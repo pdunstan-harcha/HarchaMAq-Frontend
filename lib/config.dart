@@ -4,12 +4,13 @@ import 'package:flutter/foundation.dart';
 class AppConfig {
   // URLs para diferentes entornos
   static const String devUrl = 'http://localhost:5000';
-  static const String androidEmulatorUrl = 'http://10.0.2.2:5000'; 
-  static const String iosSimulatorUrl = 'http://localhost:5000'; 
-  static const String prodUrl = 'https://harchaback-production.up.railway.app';
+  static const String androidEmulatorUrl = 'http://10.0.2.2:5000';
+  static const String iosSimulatorUrl = 'http://localhost:5000';
+  static const String prodUrl = 'https://harchaback-crpuc2dfwa-tl.a.run.app';
 
   // Lee BASE_URL desde --dart-define
-  static const String _envBaseUrl = String.fromEnvironment('BASE_URL', defaultValue: '');
+  static const String _envBaseUrl =
+      String.fromEnvironment('BASE_URL', defaultValue: '');
 
   // Método para obtener la URL apropiada según el entorno
   static String getApiUrl() {

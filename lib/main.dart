@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:harcha_maquinaria/utils/logger.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'screens/login_screen.dart';
@@ -27,15 +28,20 @@ class HarchaApp extends StatelessWidget {
       theme: harchaTheme, // Usar el tema personalizado
       home: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {
+          SafeLogger.debug(
+              'Consumer rebuild - isAuthenticated: ${authProvider.isAuthenticated}, user: ${authProvider.user != null}');
           // Mientras verifica autenticación, muestra splash
           if (authProvider.isLoading) {
             return const SplashScreen();
           }
-          
+
           // Si está autenticado y tiene datos de usuario, va a dashboard
           if (authProvider.isAuthenticated && authProvider.user != null) {
+            SafeLogger.info(
+                'Navegando a DashboardScreen con usuario: ${authProvider.user}');
             return DashboardScreen(usuario: authProvider.user!);
           } else {
+            SafeLogger.info('Mostrando Login');
             return const LoginScreen();
           }
         },
@@ -60,9 +66,9 @@ class HarchaApp extends StatelessWidget {
 }
 
 // Colores oficiales de Harcha Constructora
-const Color harchaBlue = Color(0xFF0066CC);  // Azul del logo
-const Color harchaGray = Color(0xFF666666);  // Gris del logo
-const Color harchaLightBlue = Color(0xFF3399FF);  // Azul claro para acentos
+const Color harchaBlue = Color(0xFF0066CC); // Azul del logo
+const Color harchaGray = Color(0xFF666666); // Gris del logo
+const Color harchaLightBlue = Color(0xFF3399FF); // Azul claro para acentos
 
 final ThemeData harchaTheme = ThemeData(
   primaryColor: harchaBlue,
@@ -117,7 +123,8 @@ final ThemeData harchaTheme = ThemeData(
     iconColor: const Color(0xFF009FE3),
     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
   ),
-  drawerTheme: const DrawerThemeData(backgroundColor: Colors.white, elevation: 4),
+  drawerTheme:
+      const DrawerThemeData(backgroundColor: Colors.white, elevation: 4),
   listTileTheme: ListTileThemeData(
     iconColor: const Color(0xFF009FE3),
     textColor: const Color(0xFF222222),

@@ -11,7 +11,6 @@ class DashboardScreen extends StatelessWidget {
 
   const DashboardScreen({super.key, required this.usuario});
 
-  // ✅ HELPERS PARA USUARIO (SIN CAMBIOS)
   String get _usuarioNombre {
     try {
       final nombre = usuario['NOMBRE'];
@@ -69,6 +68,7 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('Entrando a DashboardScreen');
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dashboard Harcha'),
@@ -175,11 +175,12 @@ class DashboardScreen extends StatelessWidget {
                         'label': 'Ver Recargas',
                         'icon': Icons.list_alt,
                         'onTap': () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const RecargasListScreen(),
-                          ),
-                        ),
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const RecargasListScreen(),
+                              ),
+                            ),
                       },
                     ],
                   ),
@@ -226,12 +227,12 @@ class DashboardScreen extends StatelessWidget {
                         'label': 'Ver Reportes',
                         'icon': Icons.list_alt,
                         'onTap': () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                const ContratosReportesListScreen(),
-                          ),
-                        ),
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const ContratosReportesListScreen(),
+                              ),
+                            ),
                       },
                     ],
                   ),

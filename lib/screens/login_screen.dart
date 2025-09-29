@@ -29,14 +29,25 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _error = null);
 
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      
+
       final success = await authProvider.login(
         _usuarioController.text,
         _passwordController.text,
       );
 
       if (!mounted) return; // Verificar si el widget sigue montado
-      if (!success) {
+      if (success) {
+        await Future.delayed(const Duration(milliseconds: 0));
+        if (!mounted) return;
+
+        if (authProvider.isAuthenticated && authProvider.user != null) {
+          Navigator.of(context).pushReplacementNamed('/dashboard');
+        } else {
+          setState(() {
+            _error = 'Error al obtener datos del usuario';
+          });
+        }
+      } else {
         setState(() {
           _error = 'Usuario o contraseña incorrectos';
         });
@@ -61,7 +72,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     const HarchaLoginLogo(),
                     const SizedBox(height: 48),
-                    
+
                     // Campo Usuario
                     TextFormField(
                       controller: _usuarioController,
@@ -81,7 +92,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    
+
                     // Campo Contraseña
                     TextFormField(
                       controller: _passwordController,
@@ -102,7 +113,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       },
                     ),
                     const SizedBox(height: 24),
-                    
+
                     // Mensaje de error
                     if (_error != null)
                       Container(
@@ -112,7 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: TextStyle(color: Colors.red[300]),
                         ),
                       ),
-                    
+
                     // Botón Login
                     SizedBox(
                       width: double.infinity,
@@ -127,7 +138,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         child: authProvider.isLoading
-                            ? const CircularProgressIndicator(color: Color(0xFF6A6FAE))
+                            ? const CircularProgressIndicator(
+                                color: Color(0xFF6A6FAE))
                             : const Text(
                                 'Iniciar Sesión',
                                 style: TextStyle(
