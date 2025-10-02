@@ -3,6 +3,7 @@ import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:harcha_maquinaria/services/database_helper.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class RecargasListScreen extends StatefulWidget {
   const RecargasListScreen({super.key});
@@ -141,25 +142,21 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
     try {
       print('=== DEBUG IMPRESIÓN ===');
       print('kIsWeb: $kIsWeb');
-      if (!kIsWeb) {
-        print('Platform: ${Platform.operatingSystem}');
+
+      // Detectar plataforma de forma segura
+      String platformName = 'Desconocido';
+      if (kIsWeb) {
+        platformName = 'PWA/Web';
+      } else {
+        try {
+          platformName = Platform.operatingSystem;
+        } catch (e) {
+          platformName = 'Error al detectar plataforma';
+        }
       }
+      print('Plataforma: $platformName');
       print('Longitud HTML: ${htmlRecibo.length}');
       print('Primeros 200 caracteres: ${htmlRecibo.substring(0, htmlRecibo.length < 200 ? htmlRecibo.length : 200)}');
-
-      // Verificar si estamos en Android
-      if (kIsWeb || (!Platform.isAndroid)) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Esta funcionalidad solo está disponible en Android nativo'),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 3),
-            ),
-          );
-        }
-        return;
-      }
 
       // RawBT acepta HTML directamente mediante esquema URI
       // Formato: rawbt:base64
@@ -181,7 +178,7 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('Plataforma: ${Platform.operatingSystem}'),
+                    Text('Plataforma: $platformName'),
                     Text('Longitud HTML: ${htmlRecibo.length}'),
                     Text('Longitud URI: ${rawbtUri.length}'),
                     const SizedBox(height: 10),
@@ -213,6 +210,10 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
                   onPressed: () => Navigator.of(dialogContext).pop('browser'),
                   child: const Text('Abrir en navegador'),
                 ),
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop('download'),
+                  child: const Text('Descargar HTML'),
+                ),
               ],
             );
           },
@@ -221,34 +222,11 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
         print('Opción seleccionada: $result');
 
         if (result == 'print') {
-          // Para Android nativo, usa AndroidIntent
-          print('Intentando lanzar AndroidIntent...');
-          final intent = AndroidIntent(
-            action: 'android.intent.action.VIEW',
-            data: rawbtUri,
-          );
-          await intent.launch();
-          print('AndroidIntent lanzado exitosamente');
-
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Intent enviado a RawBT'),
-                backgroundColor: Colors.green,
-                duration: Duration(seconds: 2),
-              ),
-            );
-          }
+          await _enviarARawBT(context, rawbtUri, htmlRecibo);
         } else if (result == 'browser') {
-          // Abrir HTML en navegador para debug
-          print('Abriendo en navegador...');
-          final intent = AndroidIntent(
-            action: 'android.intent.action.VIEW',
-            data: 'data:text/html;charset=utf-8,${Uri.encodeComponent(htmlRecibo)}',
-            type: 'text/html',
-          );
-          await intent.launch();
-          print('HTML abierto en navegador');
+          await _abrirEnNavegador(context, htmlRecibo);
+        } else if (result == 'download') {
+          await _descargarHTML(context, htmlRecibo);
         }
       }
     } catch (e, stackTrace) {
@@ -282,6 +260,151 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
                 );
               },
             ),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _enviarARawBT(BuildContext context, String rawbtUri, String htmlRecibo) async {
+    try {
+      print('Intentando abrir RawBT...');
+
+      if (kIsWeb) {
+        // Para PWA: usar url_launcher que funciona en web
+        print('Usando url_launcher para PWA');
+        final uri = Uri.parse(rawbtUri);
+        final launched = await launchUrl(
+          uri,
+          mode: LaunchMode.externalApplication,
+        );
+
+        if (launched) {
+          print('RawBT lanzado exitosamente desde PWA');
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Abriendo RawBT...'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        } else {
+          print('No se pudo lanzar RawBT desde PWA');
+          throw Exception('No se pudo abrir RawBT. Asegúrate de que esté instalado.');
+        }
+      } else {
+        // Para Android nativo: usar AndroidIntent
+        print('Usando AndroidIntent para Android nativo');
+        final intent = AndroidIntent(
+          action: 'android.intent.action.VIEW',
+          data: rawbtUri,
+        );
+        await intent.launch();
+        print('AndroidIntent lanzado exitosamente');
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Intent enviado a RawBT'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error al enviar a RawBT: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al abrir RawBT: $e\n\nIntenta "Descargar HTML" y abrirlo manualmente.'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _abrirEnNavegador(BuildContext context, String htmlRecibo) async {
+    try {
+      print('Abriendo HTML en navegador...');
+      final dataUri = 'data:text/html;charset=utf-8,${Uri.encodeComponent(htmlRecibo)}';
+
+      if (kIsWeb) {
+        // Para PWA
+        final uri = Uri.parse(dataUri);
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        // Para Android nativo
+        final intent = AndroidIntent(
+          action: 'android.intent.action.VIEW',
+          data: dataUri,
+          type: 'text/html',
+        );
+        await intent.launch();
+      }
+
+      print('HTML abierto en navegador');
+    } catch (e) {
+      print('Error al abrir en navegador: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al abrir navegador: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _descargarHTML(BuildContext context, String htmlRecibo) async {
+    try {
+      print('Descargando HTML...');
+
+      // Crear un data URI descargable
+      final dataUri = 'data:text/html;charset=utf-8,${Uri.encodeComponent(htmlRecibo)}';
+      final uri = Uri.parse(dataUri);
+
+      // Intentar abrir el data URI
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+      if (launched) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('HTML descargado. Busca el archivo en Descargas y ábrelo con RawBT.'),
+              backgroundColor: Colors.blue,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+      } else {
+        throw Exception('No se pudo descargar el archivo');
+      }
+    } catch (e) {
+      print('Error al descargar HTML: $e');
+      if (context.mounted) {
+        // Mostrar el HTML en un diálogo para que el usuario pueda copiarlo
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('HTML del recibo'),
+            content: SingleChildScrollView(
+              child: SelectableText(
+                htmlRecibo,
+                style: const TextStyle(fontSize: 10, fontFamily: 'monospace'),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cerrar'),
+              ),
+            ],
           ),
         );
       }
