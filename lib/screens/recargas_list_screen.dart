@@ -1,8 +1,10 @@
 import 'package:android_intent_plus/android_intent.dart';
+import 'package:html_to_image_flutter/html_to_image_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:harcha_maquinaria/services/database_helper.dart';
-import 'dart:html' as html;
+import 'dart:typed_data';
+import 'dart:io';
 
 class RecargasListScreen extends StatefulWidget {
   const RecargasListScreen({super.key});
@@ -137,37 +139,34 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
     }
   }
 
-  void imprimirReciboPOS(BuildContext context, String htmlRecibo) async {
-    if (kIsWeb) {
-      // Web/PWA: usa el esquema rawbt://
-      final encoded = Uri.encodeComponent(htmlRecibo);
-      try {
-        final url = 'rawbt://print?data=$encoded';
-        html.window.location.href = url;
-      } catch (e) {
-        final intentUrl = 'intent://print?data=$encoded#Intent;'
-            'package=ru.a402d.rawbtprinter;'
-            'scheme=rawbt;'
-            'end';
-        html.window.location.href = intentUrl;
-      }
-    } else {
-      // Android nativo: usa AndroidIntent
-      try {
-        final intent = AndroidIntent(
-          action: 'android.intent.action.SEND',
-          package: 'ru.a402d.rawbtprinter',
-          type: 'text/html',
-          arguments: <String, dynamic>{
-            'android.intent.extra.TEXT': htmlRecibo,
-          },
-        );
-        await intent.launch();
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al imprimir recibo: $e')),
-        );
-      }
+  Future<void> imprimirReciboComoImagen(BuildContext context, String htmlRecibo) async {
+    try {
+      // Convierte el HTML a imagen usando html_to_image_flutter
+      final Uint8List imageBytes = await HtmlToImage.convertToImage(
+        content: htmlRecibo,
+        delay: Duration(milliseconds: 500), // Tiempo para renderizar
+        width: 300, // Ancho para recibos térmicos
+      );
+
+      // Guarda la imagen temporalmente
+      final tempDir = Directory.systemTemp;
+      final file = File('${tempDir.path}/recibo.png');
+      await file.writeAsBytes(imageBytes);
+
+      // Envía a RawBT
+      final intent = AndroidIntent(
+        action: 'android.intent.action.SEND',
+        package: 'ru.a402d.rawbtprinter',
+        type: 'image/png',
+        arguments: <String, dynamic>{
+          'android.intent.extra.STREAM': file.uri.toString(),
+        },
+      );
+      await intent.launch();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al imprimir recibo: $e')),
+      );
     }
   }
 
@@ -289,19 +288,11 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
                                     tooltip: 'Imprimir recibo',
                                     onPressed: () async {
                                       try {
-                                        final htmlRecibo = await DatabaseHelper
-                                            .obtenerReciboRecargaHtml(
-                                                recarga['id']);
-
-                                          imprimirReciboPOS(context, htmlRecibo);
-
-
+                                        final htmlRecibo = await DatabaseHelper.obtenerReciboRecargaHtml(recarga['id']);
+                                        imprimirReciboComoImagen(context, htmlRecibo);
                                       } catch (e) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
-                                          SnackBar(
-                                              content: Text(
-                                                  'Error al obtener recibo: $e')),
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Error al obtener recibo: $e')),
                                         );
                                       }
                                     },
