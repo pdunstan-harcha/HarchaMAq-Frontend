@@ -2,7 +2,6 @@ import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:harcha_maquinaria/services/database_helper.dart';
-import 'dart:convert';
 import 'dart:html' as html;
 
 class RecargasListScreen extends StatefulWidget {
@@ -33,23 +32,7 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
       final recargas = await DatabaseHelper.obtenerRecargasCombustible();
 
       setState(() {
-        _recargas = recargas.map((recarga) {
-          return {
-            'id': recarga['id'],
-            'ID_RECARGA': recarga['codigo'] ?? 'Sin código',
-            'FECHA': recarga['fecha'] ?? recarga['fechahora_recarga'],
-            'LITROS': recarga['litros'],
-            'NOMBRE_MAQUINA': recarga['maquina']?['nombre'] ?? 'N/A',
-            'NOMBRE_USUARIO': recarga['usuario']?['usuario'] ?? 'N/A',
-            'NOMBRE_OBRA': recarga['obra']?['nombre'] ?? 'N/A',
-            'NOMBRE_CLIENTE': recarga['cliente']?['nombre'] ?? 'N/A',
-            'NOMBRE_OPERADOR': recarga['operador']?['usuario'] ?? 'N/A',
-            'ODOMETRO': recarga['odometro'],
-            'KILOMETROS': recarga['kilometros'],
-            'PATENTE': recarga['patente'],
-            'OBSERVACIONES': recarga['observaciones'],
-          };
-        }).toList();
+        _recargas = recargas;
         _isLoading = false;
       });
     } catch (e) {
@@ -65,30 +48,42 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Recarga: ${recarga['ID_RECARGA']}'),
+          title: Text(
+              'Recarga: ${recarga['codigo'] ?? 'N/A'}'),
           content: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildInfoRow('Máquina:', recarga['NOMBRE_MAQUINA'] ?? 'N/A'),
-                _buildInfoRow('Usuario:', recarga['NOMBRE_USUARIO'] ?? 'N/A'),
-                _buildInfoRow('Fecha:', _formatearFecha(recarga['FECHA'])),
-                _buildInfoRow('Litros:', '${recarga['LITROS']} L'),
-                if (recarga['ODOMETRO'] != null)
-                  _buildInfoRow('Odómetro:', '${recarga['ODOMETRO']} km'),
-                if (recarga['KILOMETROS'] != null)
-                  _buildInfoRow('Kilómetros:', '${recarga['KILOMETROS']} km'),
-                if (recarga['PATENTE'] != null &&
-                    recarga['PATENTE'].toString().isNotEmpty)
-                  _buildInfoRow('Patente:', recarga['PATENTE']),
-                if (recarga['NOMBRE_OBRA'] != null)
-                  _buildInfoRow('Obra:', recarga['NOMBRE_OBRA']),
-                if (recarga['NOMBRE_CLIENTE'] != null)
-                  _buildInfoRow('Cliente:', recarga['NOMBRE_CLIENTE']),
-                if (recarga['OBSERVACIONES'] != null &&
-                    recarga['OBSERVACIONES'].toString().isNotEmpty)
-                  _buildInfoRow('Observaciones:', recarga['OBSERVACIONES']),
+                _buildInfoRow('Máquina:', recarga['maquina']?['nombre'] ?? 'N/A'),
+                _buildInfoRow('Usuario:', recarga['usuario']?['usuario'] ?? 'N/A'),
+                if (recarga['operador']?['usuario'] != null &&
+                    recarga['operador']['usuario'].toString().isNotEmpty)
+                  _buildInfoRow('Operador:', recarga['operador']['usuario']),
+                if (recarga['rut_operador'] != null &&
+                    recarga['rut_operador'].toString().isNotEmpty)
+                  _buildInfoRow('RUT Operador:', recarga['rut_operador']),
+                _buildInfoRow('Fecha:',
+                    _formatearFecha(recarga['fecha'] ?? recarga['fechahora_recarga'])),
+                _buildInfoRow(
+                    'Litros:', '${recarga['litros'] ?? 0} L'),
+                if (recarga['odometro'] != null)
+                  _buildInfoRow('Odómetro:',
+                      '${recarga['odometro']} Hr'),
+                if (recarga['kilometros'] != null)
+                  _buildInfoRow('Kilómetros:',
+                      '${recarga['kilometros']} km'),
+                if (recarga['patente'] != null &&
+                    recarga['patente'].toString().isNotEmpty)
+                  _buildInfoRow('Patente:', recarga['patente']),
+                if (recarga['obra'] != null)
+                  _buildInfoRow('Obra:', recarga['obra']?['nombre'] ?? 'N/A'),
+                if (recarga['cliente'] != null)
+                  _buildInfoRow('Cliente:', recarga['cliente']?['nombre'] ?? 'N/A'),
+                if (recarga['observaciones'] != null &&
+                    recarga['observaciones'].toString().isNotEmpty)
+                  _buildInfoRow('Observaciones:', recarga['observaciones']),
+                // Mostrar datos de recarga anterior si existen
               ],
             ),
           ),
@@ -163,8 +158,18 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
 
   void imprimirReciboPOS(String htmlRecibo) {
     if (kIsWeb) {
+      // Log para debugging
+      print('=== HTML RECIBO RECIBIDO ===');
+      print('Longitud del HTML: ${htmlRecibo.length}');
+      print('Primeros 500 caracteres:');
+      print(htmlRecibo.substring(
+          0, htmlRecibo.length > 500 ? 500 : htmlRecibo.length));
+      print('=========================');
+
       final encoded = Uri.encodeComponent(htmlRecibo);
       final url = 'printerplus://send?text=$encoded';
+      print(
+          'URL generada (primeros 200 chars): ${url.substring(0, url.length > 200 ? 200 : url.length)}');
       html.window.location.href = url;
     } else {
       // Aquí puedes mostrar un mensaje o usar otro método de impresión
@@ -258,7 +263,7 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
                                 ),
                               ),
                               title: Text(
-                                recarga['ID_RECARGA'] ?? 'Sin código',
+                                recarga['codigo'] ?? 'Sin código',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: Color(0xFF1E3A8A),
@@ -268,11 +273,11 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Máquina: ${recarga['NOMBRE_MAQUINA'] ?? 'N/A'}',
+                                    'Máquina: ${recarga['maquina']?['nombre'] ?? 'N/A'}',
                                     style: const TextStyle(fontSize: 14),
                                   ),
                                   Text(
-                                    'Litros: ${recarga['LITROS']} L - ${_formatearFecha(recarga['FECHA'])}',
+                                    'Litros: ${recarga['litros'] ?? 0} L - ${_formatearFecha(recarga['fecha'] ?? recarga['fechahora_recarga'])}',
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: Colors.grey[600],

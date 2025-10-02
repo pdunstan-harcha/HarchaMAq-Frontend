@@ -29,6 +29,8 @@ class _RecargaCombustibleScreenState extends State<RecargaCombustibleScreen> {
   int? _obraId;
   int? _clienteId;
   int? _operadorId;
+  String? _rutOperador;
+  String? _nombreOperador;
   String _patente = '';
   DateTime _fechaHora = DateTime.now();
 
@@ -169,7 +171,8 @@ class _RecargaCombustibleScreenState extends State<RecargaCombustibleScreen> {
             });
             SafeLogger.debug('Operador Válido agregado');
           } else {
-            SafeLogger.debug('Operador inválido (nombre vacío o nulo), se omite');
+            SafeLogger.debug(
+                'Operador inválido (nombre vacío o nulo), se omite');
           }
         }
       }
@@ -209,6 +212,26 @@ class _RecargaCombustibleScreenState extends State<RecargaCombustibleScreen> {
       return operador['nombre'] as String;
     } catch (e) {
       return 'Operador desconocido';
+    }
+  }
+
+  Future<void> _cargarDatosOperador(int operadorId) async {
+    try {
+      SafeLogger.debug('Cargando datos del operador ID: $operadorId');
+      final operadorData = await DatabaseHelper.obtenerOperadorPorId(operadorId);
+
+      setState(() {
+        _rutOperador = operadorData['RUT'];
+        _nombreOperador = operadorData['usuario'] ?? operadorData['NOMBREUSUARIO'];
+      });
+
+      SafeLogger.debug('Datos del operador cargados - RUT: $_rutOperador, Nombre: $_nombreOperador');
+    } catch (e) {
+      SafeLogger.error('Error al cargar datos del operador', e);
+      setState(() {
+        _rutOperador = null;
+        _nombreOperador = null;
+      });
     }
   }
 
@@ -294,11 +317,12 @@ class _RecargaCombustibleScreenState extends State<RecargaCombustibleScreen> {
           ? double.tryParse(_kilometrosController.text)
           : null;
 
-      // ✅ USAR EL MÉTODO DEL DATABASE HELPER
       final result = await DatabaseHelper.registrarRecargaCombustible(
         idMaquina: _idMaquina!,
         usuarioId: widget.usuarioId,
         operadorId: _operadorId,
+        rutOperador: _rutOperador,
+        nombreOperador: _nombreOperador,
         fechahora: _fechaHora.toIso8601String(),
         litros: litros,
         obraId: _obraId!,
@@ -347,6 +371,8 @@ class _RecargaCombustibleScreenState extends State<RecargaCombustibleScreen> {
       _obraId = null;
       _clienteId = null;
       _operadorId = null;
+      _rutOperador = null;
+      _nombreOperador = null;
       _patente = '';
       _fechaHora = DateTime.now();
       _operadores.clear();
@@ -564,7 +590,14 @@ class _RecargaCombustibleScreenState extends State<RecargaCombustibleScreen> {
                             onChanged: (int? value) {
                               setState(() {
                                 _operadorId = value;
+                                _rutOperador = null;
+                                _nombreOperador = null;
                               });
+
+                              // Cargar datos del operador si se seleccionó uno
+                              if (value != null) {
+                                _cargarDatosOperador(value);
+                              }
                             },
                             items: [
                               const DropdownMenuItem<int>(
@@ -594,7 +627,6 @@ class _RecargaCombustibleScreenState extends State<RecargaCombustibleScreen> {
                               }).toList(),
                             ],
                           ),
-
                         if (_operadorId != null)
                           Container(
                             margin: const EdgeInsets.only(top: 8),
@@ -819,7 +851,7 @@ class _RecargaCombustibleScreenState extends State<RecargaCombustibleScreen> {
     _observacionesController.dispose();
     _horometroController.dispose();
     _kilometrosController.dispose();
-    _patenteController.dispose(); // ✅ DISPOSE DEL CONTROLADOR DE PATENTE
+    _patenteController.dispose();
     super.dispose();
   }
 }

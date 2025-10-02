@@ -1,8 +1,5 @@
 import 'package:harcha_maquinaria/services/api_client.dart';
 import 'package:harcha_maquinaria/services/secure_storage.dart';
-import 'package:http/http.dart' as http;
-import 'package:webview_flutter/webview_flutter.dart';
-import 'package:flutter/material.dart';
 import '../utils/logger.dart';
 
 class DatabaseHelper {
@@ -170,26 +167,79 @@ class DatabaseHelper {
       final response = await _api.post(
         '/ingresos_salidas/',
         body: {
-          'pkMaquina': idMaquina, // Backend espera pkMaquina
+          'pkMaquina': idMaquina,
           'FECHAHORA': fechahora,
           'INGRESO_SALIDA': ingresoSalida,
-          'ESTADO_MAQUINA':
-              estadoMaquina ?? 'OPERATIVA', // Valor por defecto válido
-          'Observaciones': observaciones ?? '', // Convertir null a string vacía
-          'pkUsuario': usuarioId, // Backend espera pkUsuario
+          'ESTADO_MAQUINA': estadoMaquina ?? 'OPERATIVA',
+          'Observaciones': observaciones ?? '',
+          'pkUsuario': usuarioId,
         },
       );
-
       return response['success'] == true;
     } catch (e) {
       throw Exception('Error al registrar: $e');
     }
   }
 
-  static Future<List<Map<String, dynamic>>> obtenerRecargasCombustible() async {
+  static Future<List<Map<String, dynamic>>> obtenerRecargasCombustible({
+    int? page,
+    int? perPage,
+    String? search,
+  }) async {
     try {
-      final response = await _api.get('/recargas/');
-      return List<Map<String, dynamic>>.from(response['data'] ?? response);
+      // Construir query params
+      final queryParams = <String, String>{};
+      if (page != null) queryParams['page'] = page.toString();
+      if (perPage != null) queryParams['per_page'] = perPage.toString();
+      if (search != null && search.isNotEmpty) queryParams['search'] = search;
+
+      final queryString = queryParams.isNotEmpty
+          ? '?${queryParams.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&')}'
+          : '';
+
+      final response = await _api.get('/recargas/$queryString');
+
+      // Procesar la respuesta según el nuevo esquema
+      final List<dynamic> rawData = response['data'] ?? [];
+      return rawData.map<Map<String, dynamic>>((item) {
+        return <String, dynamic>{
+          'id': item['id'],
+          'codigo': item['codigo'] ?? '',
+          'fecha': item['fecha'] ?? '',
+          'litros': item['litros'] ?? 0,
+          'foto': item['foto'] ?? '',
+          'observaciones': item['observaciones'] ?? '',
+          'odometro': item['odometro'] ?? 0,
+          'kilometros': item['kilometros'] ?? 0,
+          'fechahora_recarga': item['fechahora_recarga'] ?? '',
+          'patente': item['patente'] ?? '',
+          'rut_operador': item['rut_operador'] ?? '',
+          'id_recarga_anterior': item['id_recarga_anterior'] ?? '',
+          'litros_anterior': item['litros_anterior'] ?? 0,
+          'horometro_anterior': item['horometro_anterior'] ?? 0,
+          'kilometro_anterior': item['kilometro_anterior'] ?? 0,
+          'fecha_anterior': item['fecha_anterior'] ?? '',
+          // Datos anidados
+          'maquina': item['maquina'] ?? {},
+          'usuario': item['usuario'] ?? {},
+          'operador': item['operador'] ?? {},
+          'obra': item['obra'] ?? {},
+          'cliente': item['cliente'] ?? {},
+          'usuario_ultima_modificacion':
+              item['usuario_ultima_modificacion'] ?? {},
+          // Campos adicionales para compatibilidad
+          'pkMaquina': item['maquina']?['id'],
+          'MAQUINA': item['maquina']?['nombre'] ?? '',
+          'pkOperador': item['operador']?['id'],
+          'OPERADOR': item['operador']?['usuario'] ?? '',
+          'pkUsuario': item['usuario']?['id'],
+          'USUARIO': item['usuario']?['usuario'] ?? '',
+          'pkObra': item['obra']?['id'],
+          'OBRA': item['obra']?['nombre'] ?? '',
+          'pkCliente': item['cliente']?['id'],
+          'CLIENTE': item['cliente']?['nombre'] ?? '',
+        };
+      }).toList();
     } catch (e) {
       throw Exception('Error al obtener recargas: $e');
     }
@@ -203,6 +253,8 @@ class DatabaseHelper {
     required int obraId,
     required int clienteId,
     int? operadorId,
+    String? rutOperador,
+    String? nombreOperador,
     String? foto,
     String? observaciones,
     double? odometro,
@@ -210,27 +262,55 @@ class DatabaseHelper {
     String? patente,
   }) async {
     try {
-      final response = await _api.post(
-        '/recargas/',
-        body: {
-          'pkMaquina': idMaquina, // Backend espera pkMaquina
-          'pkUsuario': usuarioId, // Backend espera pkUsuario
-          'OPERADOR_ID': operadorId,
-          'FECHAHORA': fechahora,
-          'LITROS': litros,
-          'OBRA_ID': obraId,
-          'CLIENTE_ID': clienteId,
-          'FOTO': foto ?? '', // Convertir null a string vacía
-          'OBSERVACIONES': observaciones ?? '', // Convertir null a string vacía
-          'ODOMETRO': odometro,
-          'KILOMETROS': kilometros,
-          'PATENTE': patente ?? '',
-          'OBRA': obraId ?? '',
-          'CLIENTE': clienteId ?? '',
-        },
-      );
+      // Obtener datos de la máquina (incluye recarga anterior)
+      SafeLogger.debug('Obteniendo datos de máquina ID: $idMaquina');
+      final maquinaData = await obtenerMaquinaPorId(idMaquina);
+      SafeLogger.debug('Datos de máquina obtenidos', maquinaData);
+
+      // Construir el payload según el nuevo esquema del backend
+      final payload = {
+        'pkMaquina': idMaquina,
+        'pkUsuario': usuarioId,
+        'LITROS': litros.toInt(),
+        'OBSERVACIONES': observaciones ?? '',
+        'ODOMETRO': odometro?.toInt(),
+        'KILOMETROS': kilometros?.toInt(),
+        'PATENTE': patente ?? '',
+        'pkObra': obraId,
+        'pkCliente': clienteId,
+      };
+
+      // Agregar operador si existe
+      if (operadorId != null) {
+        payload['pkOperador'] = operadorId;
+        if (rutOperador != null && rutOperador.isNotEmpty) {
+          payload['RUT_OPERADOR'] = rutOperador;
+        }
+        if (nombreOperador != null && nombreOperador.isNotEmpty) {
+          payload['OPERADOR'] = nombreOperador;
+        }
+        SafeLogger.debug('Datos de operador agregados - ID: $operadorId, RUT: $rutOperador, Nombre: $nombreOperador');
+      }
+
+      // Agregar datos de recarga anterior si existen
+      if (maquinaData['pkUltima_recarga'] != null) {
+        payload['pkRecarga_anterior'] = maquinaData['pkUltima_recarga'];
+        payload['ID_Recarga_Anterior'] = maquinaData['ID_Ultima_Recarga'] ?? '';
+        payload['Litros_Anterior'] = maquinaData['Litros_Ultima'] ?? 0;
+        payload['Horometro_Anterior'] = maquinaData['HR_Actual'] ?? 0;
+        payload['Kilometro_Anterior'] = maquinaData['KM_Actual'] ?? 0;
+        payload['Fecha_Anterior'] = maquinaData['Fecha_Ultima'] ?? '';
+        SafeLogger.debug('Datos de recarga anterior agregados al payload');
+      } else {
+        SafeLogger.debug('No hay datos de recarga anterior para esta máquina');
+      }
+
+      SafeLogger.debug('Payload a enviar', payload);
+      final response = await _api.post('/recargas/', body: payload);
+      SafeLogger.debug('Respuesta del servidor', response);
       return response;
     } catch (e) {
+      SafeLogger.error('Error al registrar recarga', e);
       throw Exception('Error al registrar recarga: $e');
     }
   }
@@ -261,6 +341,32 @@ class DatabaseHelper {
       }).toList();
     } catch (e) {
       throw Exception('Error al obtener máquinas: $e');
+    }
+  }
+
+  static Future<Map<String, dynamic>> obtenerMaquinaPorId(int maquinaId) async {
+    try {
+      final response = await _api.get('/maquinas/$maquinaId');
+      final data = response['data'];
+
+      return <String, dynamic>{
+        'pkMaquina': data['pkMaquina'],
+        'MAQUINA': data['MAQUINA'] ?? '',
+        'MARCA': data['MARCA'] ?? '',
+        'MODELO': data['MODELO'] ?? '',
+        'PATENTE': data['PATENTE'] ?? '',
+        'ESTADO': data['ESTADO'] ?? '',
+        'ID_MAQUINA': data['ID_MAQUINA'] ?? '',
+        'HR_Actual': data['HR_Actual'],
+        'KM_Actual': data['KM_Actual'],
+        'pkUltima_recarga': data['pkUltima_recarga'],
+        'ID_Ultima_Recarga': data['ID_Ultima_Recarga'],
+        'Litros_Ultima': data['Litros_Ultima'],
+        'Fecha_Ultima': data['Fecha_Ultima'],
+        'OPERADORES': data['OPERADORES'] ?? [],
+      };
+    } catch (e) {
+      throw Exception('Error al obtener máquina por ID: $e');
     }
   }
 
@@ -295,6 +401,29 @@ class DatabaseHelper {
     } catch (e) {
       SafeLogger.error('ERROR obteniendo operadores de máquina $maquinaId', e);
       return [];
+    }
+  }
+
+  static Future<Map<String, dynamic>> obtenerOperadorPorId(
+      int operadorId) async {
+    try {
+      final response = await _api.get('/auth/usuarios/$operadorId');
+
+      if (response['success'] == true) {
+        final data = response['data'];
+        return <String, dynamic>{
+          'id': data['pkUsuario'],
+          'RUT': data['RUT']?.toString() ?? '',
+          'nombre': data['NOMBREUSUARIO']?.toString() ?? '',
+          'usuario': data['USUARIO']?.toString() ?? '',
+          'NOMBREUSUARIO': data['NOMBREUSUARIO']?.toString() ?? '',
+        };
+      }
+
+      throw Exception('No se encontró el operador');
+    } catch (e) {
+      SafeLogger.error('ERROR obteniendo operador $operadorId', e);
+      throw Exception('Error al obtener operador: $e');
     }
   }
 
@@ -449,6 +578,10 @@ class DatabaseHelper {
           'Accept': 'text/html', // Forzamos que el backend devuelva HTML
         },
       );
+
+      SafeLogger.info('Tipo de respuesta: ${response.runtimeType}');
+      SafeLogger.info(
+          'Contenido de respuesta (primeros 200 chars): ${response.toString().substring(0, response.toString().length > 200 ? 200 : response.toString().length)}');
 
       if (response is String && response.isNotEmpty) {
         return response;
