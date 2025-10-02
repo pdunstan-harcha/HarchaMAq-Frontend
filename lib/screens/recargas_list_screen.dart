@@ -3,6 +3,7 @@ import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter/material.dart';
 import 'package:harcha_maquinaria/services/database_helper.dart';
 import 'package:harcha_maquinaria/utils/platform_helper.dart';
+import 'package:harcha_maquinaria/utils/html_to_escpos.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class RecargasListScreen extends StatefulWidget {
@@ -146,11 +147,16 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
       print('Longitud HTML: ${htmlRecibo.length}');
       print('Primeros 200 caracteres: ${htmlRecibo.substring(0, htmlRecibo.length < 200 ? htmlRecibo.length : 200)}');
 
-      // RawBT puede aceptar HTML mediante Intent con extra "android.intent.extra.TEXT"
-      // O usando rawbt:base64 para datos crudos
-      // Vamos a probar ambos métodos
+      // Convertir HTML a comandos ESC/POS
+      print('Convirtiendo HTML a ESC/POS...');
+      final escPosText = HtmlToEscPos.convertHtmlToEscPos(htmlRecibo);
+      final escPosBase64 = HtmlToEscPos.toBase64(escPosText);
+
+      print('ESC/POS generado (primeros 200 chars): ${escPosText.substring(0, escPosText.length < 200 ? escPosText.length : 200)}');
+
+      // HTML original en base64
       final bytes = utf8.encode(htmlRecibo);
-      final base64Encoded = base64.encode(bytes);
+      final htmlBase64 = base64.encode(bytes);
 
       // Intent URI para RawBT con HTML
       final intentUri = 'intent:#Intent;'
@@ -160,13 +166,16 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
           'S.android.intent.extra.TEXT=${Uri.encodeComponent(htmlRecibo)};'
           'end';
 
-      // URI base64 (para datos RAW)
-      final rawbtUri = 'rawbt:base64,$base64Encoded';
+      // URI con comandos ESC/POS (RECOMENDADO)
+      final escPosUri = 'rawbt:base64,$escPosBase64';
 
-      print('Base64 generado (primeros 100 chars): ${base64Encoded.substring(0, base64Encoded.length < 100 ? base64Encoded.length : 100)}');
-      print('Longitud base64: ${base64Encoded.length}');
+      // URI con HTML crudo
+      final htmlRawUri = 'rawbt:base64,$htmlBase64';
+
+      print('HTML Base64 longitud: ${htmlBase64.length}');
+      print('ESC/POS Base64 longitud: ${escPosBase64.length}');
       print('Intent URI (primeros 150 chars): ${intentUri.substring(0, intentUri.length < 150 ? intentUri.length : 150)}');
-      print('RawBT URI (primeros 100 chars): ${rawbtUri.substring(0, rawbtUri.length < 100 ? rawbtUri.length : 100)}');
+      print('ESC/POS URI (primeros 100 chars): ${escPosUri.substring(0, escPosUri.length < 100 ? escPosUri.length : 100)}');
 
       // Mostrar diálogo de debug con opciones
       if (context.mounted) {
@@ -182,8 +191,8 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
                   children: [
                     Text('Plataforma: ${PlatformHelper.platformName}'),
                     Text('Longitud HTML: ${htmlRecibo.length} bytes'),
-                    Text('Longitud Base64: ${base64Encoded.length} bytes'),
-                    Text('Longitud URI: ${rawbtUri.length} bytes'),
+                    Text('ESC/POS Base64: ${escPosBase64.length} bytes'),
+                    Text('HTML Base64: ${htmlBase64.length} bytes'),
                     const SizedBox(height: 10),
                     const Text('Preview HTML:', style: TextStyle(fontWeight: FontWeight.bold)),
                     Container(
@@ -206,16 +215,23 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
                   child: const Text('Cancelar'),
                 ),
                 TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop('print_html'),
-                  child: const Text('RawBT (HTML)'),
+                  onPressed: () => Navigator.of(dialogContext).pop('print_escpos'),
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.green.shade50,
+                  ),
+                  child: const Text('✓ ESC/POS', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
                 TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop('print_raw'),
-                  child: const Text('RawBT (RAW)'),
+                  onPressed: () => Navigator.of(dialogContext).pop('print_html_intent'),
+                  child: const Text('HTML Intent'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop('print_html_raw'),
+                  child: const Text('HTML Raw'),
                 ),
                 TextButton(
                   onPressed: () => Navigator.of(dialogContext).pop('browser'),
-                  child: const Text('Ver HTML'),
+                  child: const Text('Ver'),
                 ),
               ],
             );
@@ -224,10 +240,15 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
 
         print('Opción seleccionada: $result');
 
-        if (result == 'print_html') {
-          await _enviarARawBT(context, intentUri, htmlRecibo, useIntent: true);
-        } else if (result == 'print_raw') {
-          await _enviarARawBT(context, rawbtUri, htmlRecibo, useIntent: false);
+        if (result == 'print_escpos') {
+          // RECOMENDADO: Usar ESC/POS
+          await _enviarARawBT(context, escPosUri, htmlRecibo, modo: 'ESC/POS');
+        } else if (result == 'print_html_intent') {
+          // Intentar con Intent SEND
+          await _enviarARawBT(context, intentUri, htmlRecibo, modo: 'HTML Intent');
+        } else if (result == 'print_html_raw') {
+          // HTML como datos crudos
+          await _enviarARawBT(context, htmlRawUri, htmlRecibo, modo: 'HTML Raw');
         } else if (result == 'browser') {
           await _abrirEnNavegador(context, htmlRecibo);
         }
@@ -269,10 +290,10 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
     }
   }
 
-  Future<void> _enviarARawBT(BuildContext context, String uri, String htmlRecibo, {required bool useIntent}) async {
+  Future<void> _enviarARawBT(BuildContext context, String uri, String htmlRecibo, {required String modo}) async {
     try {
       print('Intentando abrir RawBT...');
-      print('Modo: ${useIntent ? "Intent (HTML)" : "Raw (base64)"}');
+      print('Modo: $modo');
 
       if (PlatformHelper.isWeb) {
         // Para PWA: usar url_launcher que funciona en web
@@ -288,7 +309,7 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Abriendo RawBT en modo ${useIntent ? "HTML" : "RAW"}...'),
+                content: Text('Abriendo RawBT en modo $modo...'),
                 backgroundColor: Colors.green,
                 duration: const Duration(seconds: 2),
               ),
@@ -302,7 +323,7 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
         // Para Android nativo: usar AndroidIntent
         print('Usando AndroidIntent para Android nativo');
 
-        if (useIntent) {
+        if (modo == 'HTML Intent') {
           // Usar Intent SEND para HTML
           final intent = AndroidIntent(
             action: 'android.intent.action.SEND',
@@ -312,7 +333,7 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
           );
           await intent.launch();
         } else {
-          // Usar esquema rawbt: para datos RAW
+          // Usar esquema rawbt: para datos RAW o ESC/POS
           final intent = AndroidIntent(
             action: 'android.intent.action.VIEW',
             data: uri,
@@ -325,7 +346,7 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Intent enviado a RawBT en modo ${useIntent ? "HTML" : "RAW"}'),
+              content: Text('Intent enviado a RawBT en modo $modo'),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 2),
             ),
