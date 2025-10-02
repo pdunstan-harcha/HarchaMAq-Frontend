@@ -48,38 +48,39 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text(
-              'Recarga: ${recarga['codigo'] ?? 'N/A'}'),
+          title: Text('Recarga: ${recarga['codigo'] ?? 'N/A'}'),
           content: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildInfoRow('Máquina:', recarga['maquina']?['nombre'] ?? 'N/A'),
-                _buildInfoRow('Usuario:', recarga['usuario']?['usuario'] ?? 'N/A'),
+                _buildInfoRow(
+                    'Máquina:', recarga['maquina']?['nombre'] ?? 'N/A'),
+                _buildInfoRow(
+                    'Usuario:', recarga['usuario']?['usuario'] ?? 'N/A'),
                 if (recarga['operador']?['usuario'] != null &&
                     recarga['operador']['usuario'].toString().isNotEmpty)
                   _buildInfoRow('Operador:', recarga['operador']['usuario']),
                 if (recarga['rut_operador'] != null &&
                     recarga['rut_operador'].toString().isNotEmpty)
                   _buildInfoRow('RUT Operador:', recarga['rut_operador']),
-                _buildInfoRow('Fecha:',
-                    _formatearFecha(recarga['fecha'] ?? recarga['fechahora_recarga'])),
                 _buildInfoRow(
-                    'Litros:', '${recarga['litros'] ?? 0} L'),
+                    'Fecha:',
+                    _formatearFecha(
+                        recarga['fecha'] ?? recarga['fechahora_recarga'])),
+                _buildInfoRow('Litros:', '${recarga['litros'] ?? 0} L'),
                 if (recarga['odometro'] != null)
-                  _buildInfoRow('Odómetro:',
-                      '${recarga['odometro']} Hr'),
+                  _buildInfoRow('Odómetro:', '${recarga['odometro']} Hr'),
                 if (recarga['kilometros'] != null)
-                  _buildInfoRow('Kilómetros:',
-                      '${recarga['kilometros']} km'),
+                  _buildInfoRow('Kilómetros:', '${recarga['kilometros']} km'),
                 if (recarga['patente'] != null &&
                     recarga['patente'].toString().isNotEmpty)
                   _buildInfoRow('Patente:', recarga['patente']),
                 if (recarga['obra'] != null)
                   _buildInfoRow('Obra:', recarga['obra']?['nombre'] ?? 'N/A'),
                 if (recarga['cliente'] != null)
-                  _buildInfoRow('Cliente:', recarga['cliente']?['nombre'] ?? 'N/A'),
+                  _buildInfoRow(
+                      'Cliente:', recarga['cliente']?['nombre'] ?? 'N/A'),
                 if (recarga['observaciones'] != null &&
                     recarga['observaciones'].toString().isNotEmpty)
                   _buildInfoRow('Observaciones:', recarga['observaciones']),
@@ -136,12 +137,11 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
     }
   }
 
-  Future<void> _imprimirConPrinterPlus(
-      BuildContext context, String htmlRecibo) async {
+  Future<void> _imprimirConPos(BuildContext context, String htmlRecibo) async {
     try {
       final intent = AndroidIntent(
         action: 'android.intent.action.SEND',
-        package: 'com.printerplus.mobile',
+        package: 'ru.a402d.rawbtprinter',
         type: 'text/html',
         arguments: <String, dynamic>{
           'android.intent.extra.TEXT': htmlRecibo,
@@ -159,7 +159,7 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
   void imprimirReciboPOS(String htmlRecibo) {
     if (kIsWeb) {
       // Log para debugging
-      print('=== HTML RECIBO RECIBIDO ===');
+      print('=== HTML RECIBO PARA RAWBT ===');
       print('Longitud del HTML: ${htmlRecibo.length}');
       print('Primeros 500 caracteres:');
       print(htmlRecibo.substring(
@@ -167,13 +167,23 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
       print('=========================');
 
       final encoded = Uri.encodeComponent(htmlRecibo);
-      final url = 'printerplus://send?text=$encoded';
-      print(
-          'URL generada (primeros 200 chars): ${url.substring(0, url.length > 200 ? 200 : url.length)}');
-      html.window.location.href = url;
+      try {
+        final url = 'rawbt://print?data=$encoded';
+        print(
+            'URL RawBT generada (primeros 200 chars): ${url.substring(0, url.length > 200 ? 200 : url.length)}');
+        html.window.location.href = url;
+      } catch (e) {
+        print('Error con rawbt://, intentando con intent de Android');
+        // Fallback: Intent de Android para RawBT
+        final intentUrl = 'intent://print?data=$encoded#Intent;'
+            'package=ru.a402d.rawbtprinter;'
+            'scheme=rawbt;'
+            'end';
+        html.window.location.href = intentUrl;
+      }
     } else {
-      // Aquí puedes mostrar un mensaje o usar otro método de impresión
-      print('Impresión POS solo disponible en Web/PWA con Printer+');
+      // Para Android nativo
+      print('Impresión RawBT solo disponible en Web/PWA con RawBT instalado');
     }
   }
 
@@ -263,7 +273,9 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
                                 ),
                               ),
                               title: Text(
-                                recarga['codigo'] ?? 'Sin código',
+                                recarga['codigo'] ??
+                                    recarga['ID_RECARGA'] ??
+                                    'Sin código',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: Color(0xFF1E3A8A),
@@ -273,11 +285,11 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Máquina: ${recarga['maquina']?['nombre'] ?? 'N/A'}',
+                                    'Máquina: ${recarga['maquina.nombre'] ?? 'N/A'}',
                                     style: const TextStyle(fontSize: 14),
                                   ),
                                   Text(
-                                    'Litros: ${recarga['litros'] ?? 0} L - ${_formatearFecha(recarga['fecha'] ?? recarga['fechahora_recarga'])}',
+                                    'Litros: ${recarga['litros'] ?? recarga['LITROS']} L - ${_formatearFecha(recarga['fecha'] ?? recarga['FECHA'])}',
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: Colors.grey[600],
@@ -299,7 +311,7 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
                                         if (kIsWeb) {
                                           imprimirReciboPOS(htmlRecibo);
                                         } else {
-                                          await _imprimirConPrinterPlus(
+                                          await _imprimirConPos(
                                               context, htmlRecibo);
                                         }
                                       } catch (e) {
