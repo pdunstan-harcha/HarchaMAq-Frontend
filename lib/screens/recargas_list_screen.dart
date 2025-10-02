@@ -1,5 +1,4 @@
 import 'package:android_intent_plus/android_intent.dart';
-import 'package:html_to_image_flutter/html_to_image_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
