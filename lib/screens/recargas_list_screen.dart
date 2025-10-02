@@ -1,12 +1,8 @@
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter/material.dart';
-import 'package:screenshot/screenshot.dart';
-import 'package:flutter_html/flutter_html.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:harcha_maquinaria/services/database_helper.dart';
-import 'dart:typed_data';
-import 'dart:io';
+import 'package:url_launcher/url_launcher.dart';
 
 class RecargasListScreen extends StatefulWidget {
   const RecargasListScreen({super.key});
@@ -141,54 +137,37 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
     }
   }
 
-  Future<void> imprimirReciboComoImagen(BuildContext context, String htmlRecibo) async {
-
-    if (kIsWeb) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Impresión no disponible en Web')),
-      );
-      return;
-    }
+  Future<void> imprimirReciboRawBT(BuildContext context, String htmlRecibo) async {
     try {
-      final screenshotController = ScreenshotController();
+      // RawBT acepta HTML directamente mediante esquema URI
+      // Formato: rawbt:base64
 
-      // Renderiza el HTML como widget y captura como imagen
-      final imageBytes = await screenshotController.captureFromWidget(
-        Material(
-          child: Container(
-            width: 300,
-            color: Colors.white,
-            padding: const EdgeInsets.all(16),
-            child: Html(
-              data: htmlRecibo,
-              style: {
-                "body": Style(
-                  margin: Margins.zero,
-                  padding: HtmlPaddings.zero,
-                  fontSize: FontSize(12),
-                ),
-              },
-            ),
-          ),
-        ),
-        pixelRatio: 2.0,
-      );
+      if (kIsWeb) {
+        // Para Web/PWA, usa el esquema URI directamente
+        final encoded = Uri.encodeComponent(htmlRecibo);
+        final url = 'rawbt:base64,$encoded';
 
-      // Guarda la imagen
-      final directory = await getTemporaryDirectory();
-      final file = File('${directory.path}/recibo.png');
-      await file.writeAsBytes(imageBytes);
-
-      // Envía a RawBT
-      final intent = AndroidIntent(
-        action: 'android.intent.action.SEND',
-        package: 'ru.a402d.rawbtprinter',
-        type: 'image/png',
-        arguments: <String, dynamic>{
-          'android.intent.extra.STREAM': file.uri.toString(),
-        },
-      );
-      await intent.launch();
+        final uri = Uri.parse(url);
+        if (await canLaunchUrl(uri)) {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } else {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('RawBT no está instalado. Instálalo desde la Play Store.'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        }
+      } else {
+        // Para Android nativo, usa AndroidIntent
+        final intent = AndroidIntent(
+          action: 'android.intent.action.VIEW',
+          data: 'rawbt:base64,${Uri.encodeComponent(htmlRecibo)}',
+        );
+        await intent.launch();
+      }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -317,7 +296,7 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
                                     onPressed: () async {
                                       try {
                                         final htmlRecibo = await DatabaseHelper.obtenerReciboRecargaHtml(recarga['id']);
-                                        imprimirReciboComoImagen(context, htmlRecibo);
+                                        await imprimirReciboRawBT(context, htmlRecibo);
                                       } catch (e) {
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(content: Text('Error al obtener recibo: $e')),
