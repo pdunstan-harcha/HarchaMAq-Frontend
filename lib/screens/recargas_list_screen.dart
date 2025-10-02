@@ -137,21 +137,130 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
 
   Future<void> imprimirReciboRawBT(BuildContext context, String htmlRecibo) async {
     try {
+      print('=== DEBUG IMPRESIÓN ===');
+      print('Longitud HTML: ${htmlRecibo.length}');
+      print('Primeros 200 caracteres: ${htmlRecibo.substring(0, htmlRecibo.length < 200 ? htmlRecibo.length : 200)}');
+
       // RawBT acepta HTML directamente mediante esquema URI
       // Formato: rawbt:base64
+      final encoded = Uri.encodeComponent(htmlRecibo);
+      final rawbtUri = 'rawbt:base64,$encoded';
 
-      // Para Android nativo, usa AndroidIntent
-      final intent = AndroidIntent(
-        action: 'android.intent.action.VIEW',
-        data: 'rawbt:base64,${Uri.encodeComponent(htmlRecibo)}',
-      );
-      await intent.launch();
-    } catch (e) {
+      print('URI generada (primeros 100 chars): ${rawbtUri.substring(0, rawbtUri.length < 100 ? rawbtUri.length : 100)}');
+      print('Longitud URI: ${rawbtUri.length}');
+
+      // Mostrar diálogo de debug con opciones
+      if (context.mounted) {
+        final result = await showDialog<String>(
+          context: context,
+          builder: (BuildContext dialogContext) {
+            return AlertDialog(
+              title: const Text('Debug - Imprimir'),
+              content: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Longitud HTML: ${htmlRecibo.length}'),
+                    Text('Longitud URI: ${rawbtUri.length}'),
+                    const SizedBox(height: 10),
+                    const Text('Preview HTML:', style: TextStyle(fontWeight: FontWeight.bold)),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        htmlRecibo.substring(0, htmlRecibo.length < 300 ? htmlRecibo.length : 300),
+                        style: const TextStyle(fontSize: 10, fontFamily: 'monospace'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop('cancel'),
+                  child: const Text('Cancelar'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop('print'),
+                  child: const Text('Imprimir con RawBT'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop('browser'),
+                  child: const Text('Abrir en navegador'),
+                ),
+              ],
+            );
+          },
+        );
+
+        print('Opción seleccionada: $result');
+
+        if (result == 'print') {
+          // Para Android nativo, usa AndroidIntent
+          print('Intentando lanzar AndroidIntent...');
+          final intent = AndroidIntent(
+            action: 'android.intent.action.VIEW',
+            data: rawbtUri,
+          );
+          await intent.launch();
+          print('AndroidIntent lanzado exitosamente');
+
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Intent enviado a RawBT'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        } else if (result == 'browser') {
+          // Abrir HTML en navegador para debug
+          print('Abriendo en navegador...');
+          final intent = AndroidIntent(
+            action: 'android.intent.action.VIEW',
+            data: 'data:text/html;charset=utf-8,${Uri.encodeComponent(htmlRecibo)}',
+            type: 'text/html',
+          );
+          await intent.launch();
+          print('HTML abierto en navegador');
+        }
+      }
+    } catch (e, stackTrace) {
+      print('ERROR en imprimirReciboRawBT: $e');
+      print('StackTrace: $stackTrace');
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al abrir RawBT: $e\n\nAsegúrate de que RawBT esté instalado.'),
-            duration: const Duration(seconds: 4),
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'Ver detalles',
+              textColor: Colors.white,
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Error detallado'),
+                    content: SingleChildScrollView(
+                      child: Text('Error: $e\n\nStack trace:\n$stackTrace'),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cerrar'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         );
       }
