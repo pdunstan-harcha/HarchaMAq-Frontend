@@ -313,14 +313,14 @@ class _ContratosReportesListScreenState
               _buildInfoRow('Cliente:', reporte['CLIENTE_TXT']),
               _buildInfoRow('Usuario:', reporte['USUARIO_TXT']),
               const Divider(height: 24),
-              _buildInfoRow('Horometro inicial:', reporte['ODOMETRO_INICIAL']?.toString()),
-              _buildInfoRow('Horometro final:', reporte['ODOMETRO_FINAL']?.toString()),
-              _buildInfoRow('Horas trabajadas:', reporte['HORAS_TRABAJADAS']?.toString()),
-              _buildInfoRow('Horas minimas:', reporte['HORAS_MINIMAS']?.toString()),
+              _buildInfoRow('Horometro inicial:', _formatNumber(reporte['ODOMETRO_INICIAL'])),
+              _buildInfoRow('Horometro final:', _formatNumber(reporte['ODOMETRO_FINAL'])),
+              _buildInfoRow('Horas trabajadas:', _formatNumber(reporte['HORAS_TRABAJADAS'])),
+              _buildInfoRow('Horas minimas:', _formatNumber(reporte['HORAS_MINIMAS'])),
               const Divider(height: 24),
-              _buildInfoRow('KM inicial:', reporte['KM_INICIO']?.toString()),
-              _buildInfoRow('KM final:', reporte['KM_FINAL']?.toString()),
-              _buildInfoRow('Kilometros:', reporte['KILOMETROS']?.toString()),
+              _buildInfoRow('KM inicial:', _formatNumber(reporte['KM_INICIO'])),
+              _buildInfoRow('KM final:', _formatNumber(reporte['KM_FINAL'])),
+              _buildInfoRow('Kilometros:', _formatNumber(reporte['KILOMETROS'])),
               const Divider(height: 24),
               _buildInfoRow('Trabajo realizado:', reporte['Descripcion']),
               _buildInfoRow('Estado:', reporte['Estado_Reporte']),
@@ -339,6 +339,13 @@ class _ContratosReportesListScreenState
         ],
       ),
     );
+  }
+
+  String? _formatNumber(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toString();
+    if (value is String) return value;
+    return value.toString();
   }
 
   Widget _buildInfoRow(String label, String? value) {
