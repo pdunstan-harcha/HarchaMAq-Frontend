@@ -1,5 +1,7 @@
+import 'dart:io' show Platform;
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:harcha_maquinaria/services/database_helper.dart';
 
 class RecargasListScreen extends StatefulWidget {
@@ -138,8 +140,26 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
   Future<void> imprimirReciboRawBT(BuildContext context, String htmlRecibo) async {
     try {
       print('=== DEBUG IMPRESIÓN ===');
+      print('kIsWeb: $kIsWeb');
+      if (!kIsWeb) {
+        print('Platform: ${Platform.operatingSystem}');
+      }
       print('Longitud HTML: ${htmlRecibo.length}');
       print('Primeros 200 caracteres: ${htmlRecibo.substring(0, htmlRecibo.length < 200 ? htmlRecibo.length : 200)}');
+
+      // Verificar si estamos en Android
+      if (kIsWeb || (!Platform.isAndroid)) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Esta funcionalidad solo está disponible en Android nativo'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
 
       // RawBT acepta HTML directamente mediante esquema URI
       // Formato: rawbt:base64
@@ -161,6 +181,7 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    Text('Plataforma: ${Platform.operatingSystem}'),
                     Text('Longitud HTML: ${htmlRecibo.length}'),
                     Text('Longitud URI: ${rawbtUri.length}'),
                     const SizedBox(height: 10),
