@@ -285,7 +285,7 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'Máquina: ${recarga['maquina.nombre'] ?? 'N/A'}',
+                                    'Máquina: ${recarga['maquina']?['nombre'] ?? 'N/A'}',
                                     style: const TextStyle(fontSize: 14),
                                   ),
                                   Text(
