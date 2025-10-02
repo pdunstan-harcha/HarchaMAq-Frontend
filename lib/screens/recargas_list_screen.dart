@@ -1,3 +1,4 @@
+import 'dart:convert' show base64, utf8;
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter/material.dart';
 import 'package:harcha_maquinaria/services/database_helper.dart';
@@ -145,11 +146,14 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
       print('Longitud HTML: ${htmlRecibo.length}');
       print('Primeros 200 caracteres: ${htmlRecibo.substring(0, htmlRecibo.length < 200 ? htmlRecibo.length : 200)}');
 
-      // RawBT acepta HTML directamente mediante esquema URI
-      // Formato: rawbt:base64
-      final encoded = Uri.encodeComponent(htmlRecibo);
-      final rawbtUri = 'rawbt:base64,$encoded';
+      // RawBT acepta HTML en base64 mediante esquema URI
+      // Formato: rawbt:base64,<base64_encoded_html>
+      final bytes = utf8.encode(htmlRecibo);
+      final base64Encoded = base64.encode(bytes);
+      final rawbtUri = 'rawbt:base64,$base64Encoded';
 
+      print('Base64 generado (primeros 100 chars): ${base64Encoded.substring(0, base64Encoded.length < 100 ? base64Encoded.length : 100)}');
+      print('Longitud base64: ${base64Encoded.length}');
       print('URI generada (primeros 100 chars): ${rawbtUri.substring(0, rawbtUri.length < 100 ? rawbtUri.length : 100)}');
       print('Longitud URI: ${rawbtUri.length}');
 
@@ -166,8 +170,9 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text('Plataforma: ${PlatformHelper.platformName}'),
-                    Text('Longitud HTML: ${htmlRecibo.length}'),
-                    Text('Longitud URI: ${rawbtUri.length}'),
+                    Text('Longitud HTML: ${htmlRecibo.length} bytes'),
+                    Text('Longitud Base64: ${base64Encoded.length} bytes'),
+                    Text('Longitud URI: ${rawbtUri.length} bytes'),
                     const SizedBox(height: 10),
                     const Text('Preview HTML:', style: TextStyle(fontWeight: FontWeight.bold)),
                     Container(
