@@ -298,35 +298,36 @@ class _ContratosReportesListScreenState
   }
 
   void _mostrarDetalleReporte(Map<String, dynamic> reporte) {
-    // Por ahora solo mostramos los detalles en un dialog
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Reporte ${reporte['ID_REPORTE']}'),
+        title: Text('Reporte ${reporte['ID_REPORTE'] ?? 'N/A'}'),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Máquina: ${reporte['MAQUINA_TXT'] ?? 'No disponible'}'),
-              const SizedBox(height: 8),
-              Text('Marca: ${reporte['MAQUINA_MARCA'] ?? 'No disponible'}'),
-              const SizedBox(height: 8),
-              Text('Modelo: ${reporte['MAQUINA_MODELO'] ?? 'No disponible'}'),
-              const SizedBox(height: 8),
-              Text('Contrato: ${reporte['CONTRATO_TXT'] ?? 'No disponible'}'),
-              const SizedBox(height: 8),
-              Text('Obra: ${reporte['OBRA_TXT'] ?? 'No disponible'}'),
-              const SizedBox(height: 8),
-              Text('Horas: ${reporte['HORAS_TRABAJADAS']}'),
-              const SizedBox(height: 8),
-              Text('Estado: ${reporte['Estado_Reporte'] ?? 'No disponible'}'),
-              const SizedBox(height: 8),
-              Text('Descripción: ${reporte['Descripcion'] ?? 'No disponible'}'),
-              const SizedBox(height: 8),
-              Text(
-                'Observaciones: ${reporte['Observaciones'] ?? 'No disponible'}',
-              ),
+              _buildInfoRow('Maquina:', reporte['MAQUINA_TXT']),
+              _buildInfoRow('Contrato:', reporte['CONTRATO_TXT']),
+              _buildInfoRow('Obra:', reporte['OBRA_TXT']),
+              _buildInfoRow('Cliente:', reporte['CLIENTE_TXT']),
+              _buildInfoRow('Usuario:', reporte['USUARIO_TXT']),
+              const Divider(height: 24),
+              _buildInfoRow('Horometro inicial:', reporte['ODOMETRO_INICIAL']?.toString()),
+              _buildInfoRow('Horometro final:', reporte['ODOMETRO_FINAL']?.toString()),
+              _buildInfoRow('Horas trabajadas:', reporte['HORAS_TRABAJADAS']?.toString()),
+              _buildInfoRow('Horas minimas:', reporte['HORAS_MINIMAS']?.toString()),
+              const Divider(height: 24),
+              _buildInfoRow('KM inicial:', reporte['KM_INICIO']?.toString()),
+              _buildInfoRow('KM final:', reporte['KM_FINAL']?.toString()),
+              _buildInfoRow('Kilometros:', reporte['KILOMETROS']?.toString()),
+              const Divider(height: 24),
+              _buildInfoRow('Trabajo realizado:', reporte['Descripcion']),
+              _buildInfoRow('Estado:', reporte['Estado_Reporte']),
+              if (reporte['Observaciones'] != null && reporte['Observaciones'].toString().isNotEmpty)
+                _buildInfoRow('Observaciones:', reporte['Observaciones']),
+              if (reporte['Reporte_Pane'] != null && reporte['Reporte_Pane'].toString().isNotEmpty)
+                _buildInfoRow('Incidente:', reporte['Reporte_Pane']),
             ],
           ),
         ),
@@ -334,6 +335,33 @@ class _ContratosReportesListScreenState
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String? value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 130,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1E3A8A),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value ?? 'No disponible',
+              style: const TextStyle(fontSize: 14),
+            ),
           ),
         ],
       ),
