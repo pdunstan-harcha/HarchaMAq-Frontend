@@ -146,16 +146,27 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
       print('Longitud HTML: ${htmlRecibo.length}');
       print('Primeros 200 caracteres: ${htmlRecibo.substring(0, htmlRecibo.length < 200 ? htmlRecibo.length : 200)}');
 
-      // RawBT acepta HTML en base64 mediante esquema URI
-      // Formato: rawbt:base64,<base64_encoded_html>
+      // RawBT puede aceptar HTML mediante Intent con extra "android.intent.extra.TEXT"
+      // O usando rawbt:base64 para datos crudos
+      // Vamos a probar ambos métodos
       final bytes = utf8.encode(htmlRecibo);
       final base64Encoded = base64.encode(bytes);
+
+      // Intent URI para RawBT con HTML
+      final intentUri = 'intent:#Intent;'
+          'action=android.intent.action.SEND;'
+          'type=text/html;'
+          'package=ru.a402d.rawbtprinter;'
+          'S.android.intent.extra.TEXT=${Uri.encodeComponent(htmlRecibo)};'
+          'end';
+
+      // URI base64 (para datos RAW)
       final rawbtUri = 'rawbt:base64,$base64Encoded';
 
       print('Base64 generado (primeros 100 chars): ${base64Encoded.substring(0, base64Encoded.length < 100 ? base64Encoded.length : 100)}');
       print('Longitud base64: ${base64Encoded.length}');
-      print('URI generada (primeros 100 chars): ${rawbtUri.substring(0, rawbtUri.length < 100 ? rawbtUri.length : 100)}');
-      print('Longitud URI: ${rawbtUri.length}');
+      print('Intent URI (primeros 150 chars): ${intentUri.substring(0, intentUri.length < 150 ? intentUri.length : 150)}');
+      print('RawBT URI (primeros 100 chars): ${rawbtUri.substring(0, rawbtUri.length < 100 ? rawbtUri.length : 100)}');
 
       // Mostrar diálogo de debug con opciones
       if (context.mounted) {
@@ -195,16 +206,16 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
                   child: const Text('Cancelar'),
                 ),
                 TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop('print'),
-                  child: const Text('Imprimir con RawBT'),
+                  onPressed: () => Navigator.of(dialogContext).pop('print_html'),
+                  child: const Text('RawBT (HTML)'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop('print_raw'),
+                  child: const Text('RawBT (RAW)'),
                 ),
                 TextButton(
                   onPressed: () => Navigator.of(dialogContext).pop('browser'),
-                  child: const Text('Abrir en navegador'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop('download'),
-                  child: const Text('Descargar HTML'),
+                  child: const Text('Ver HTML'),
                 ),
               ],
             );
@@ -213,12 +224,12 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
 
         print('Opción seleccionada: $result');
 
-        if (result == 'print') {
-          await _enviarARawBT(context, rawbtUri, htmlRecibo);
+        if (result == 'print_html') {
+          await _enviarARawBT(context, intentUri, htmlRecibo, useIntent: true);
+        } else if (result == 'print_raw') {
+          await _enviarARawBT(context, rawbtUri, htmlRecibo, useIntent: false);
         } else if (result == 'browser') {
           await _abrirEnNavegador(context, htmlRecibo);
-        } else if (result == 'download') {
-          await _descargarHTML(context, htmlRecibo);
         }
       }
     } catch (e, stackTrace) {
@@ -258,16 +269,17 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
     }
   }
 
-  Future<void> _enviarARawBT(BuildContext context, String rawbtUri, String htmlRecibo) async {
+  Future<void> _enviarARawBT(BuildContext context, String uri, String htmlRecibo, {required bool useIntent}) async {
     try {
       print('Intentando abrir RawBT...');
+      print('Modo: ${useIntent ? "Intent (HTML)" : "Raw (base64)"}');
 
       if (PlatformHelper.isWeb) {
         // Para PWA: usar url_launcher que funciona en web
         print('Usando url_launcher para PWA');
-        final uri = Uri.parse(rawbtUri);
+        final parsedUri = Uri.parse(uri);
         final launched = await launchUrl(
-          uri,
+          parsedUri,
           mode: LaunchMode.externalApplication,
         );
 
@@ -275,10 +287,10 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
           print('RawBT lanzado exitosamente desde PWA');
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Abriendo RawBT...'),
+              SnackBar(
+                content: Text('Abriendo RawBT en modo ${useIntent ? "HTML" : "RAW"}...'),
                 backgroundColor: Colors.green,
-                duration: Duration(seconds: 2),
+                duration: const Duration(seconds: 2),
               ),
             );
           }
@@ -289,19 +301,33 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
       } else {
         // Para Android nativo: usar AndroidIntent
         print('Usando AndroidIntent para Android nativo');
-        final intent = AndroidIntent(
-          action: 'android.intent.action.VIEW',
-          data: rawbtUri,
-        );
-        await intent.launch();
+
+        if (useIntent) {
+          // Usar Intent SEND para HTML
+          final intent = AndroidIntent(
+            action: 'android.intent.action.SEND',
+            type: 'text/html',
+            package: 'ru.a402d.rawbtprinter',
+            arguments: {'android.intent.extra.TEXT': htmlRecibo},
+          );
+          await intent.launch();
+        } else {
+          // Usar esquema rawbt: para datos RAW
+          final intent = AndroidIntent(
+            action: 'android.intent.action.VIEW',
+            data: uri,
+          );
+          await intent.launch();
+        }
+
         print('AndroidIntent lanzado exitosamente');
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Intent enviado a RawBT'),
+            SnackBar(
+              content: Text('Intent enviado a RawBT en modo ${useIntent ? "HTML" : "RAW"}'),
               backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
+              duration: const Duration(seconds: 2),
             ),
           );
         }
@@ -311,7 +337,7 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al abrir RawBT: $e\n\nIntenta "Descargar HTML" y abrirlo manualmente.'),
+            content: Text('Error al abrir RawBT: $e\n\nIntenta con el otro modo o "Ver HTML".'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 5),
           ),
@@ -353,55 +379,6 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
     }
   }
 
-  Future<void> _descargarHTML(BuildContext context, String htmlRecibo) async {
-    try {
-      print('Descargando HTML...');
-
-      // Crear un data URI descargable
-      final dataUri = 'data:text/html;charset=utf-8,${Uri.encodeComponent(htmlRecibo)}';
-      final uri = Uri.parse(dataUri);
-
-      // Intentar abrir el data URI
-      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-
-      if (launched) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('HTML descargado. Busca el archivo en Descargas y ábrelo con RawBT.'),
-              backgroundColor: Colors.blue,
-              duration: Duration(seconds: 4),
-            ),
-          );
-        }
-      } else {
-        throw Exception('No se pudo descargar el archivo');
-      }
-    } catch (e) {
-      print('Error al descargar HTML: $e');
-      if (context.mounted) {
-        // Mostrar el HTML en un diálogo para que el usuario pueda copiarlo
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('HTML del recibo'),
-            content: SingleChildScrollView(
-              child: SelectableText(
-                htmlRecibo,
-                style: const TextStyle(fontSize: 10, fontFamily: 'monospace'),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cerrar'),
-              ),
-            ],
-          ),
-        );
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
