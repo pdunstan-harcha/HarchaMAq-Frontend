@@ -1,8 +1,9 @@
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter/material.dart';
 import 'package:screenshot/screenshot.dart';
-import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
+import 'package:flutter_html/flutter_html.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:harcha_maquinaria/services/database_helper.dart';
 import 'dart:typed_data';
 import 'dart:io';
@@ -141,6 +142,13 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
   }
 
   Future<void> imprimirReciboComoImagen(BuildContext context, String htmlRecibo) async {
+
+    if (kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Impresión no disponible en Web')),
+      );
+      return;
+    }
     try {
       final screenshotController = ScreenshotController();
 
@@ -150,8 +158,17 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
           child: Container(
             width: 300,
             color: Colors.white,
-            padding: EdgeInsets.all(16),
-            child: HtmlWidget(htmlRecibo),
+            padding: const EdgeInsets.all(16),
+            child: Html(
+              data: htmlRecibo,
+              style: {
+                "body": Style(
+                  margin: Margins.zero,
+                  padding: HtmlPaddings.zero,
+                  fontSize: FontSize(12),
+                ),
+              },
+            ),
           ),
         ),
         pixelRatio: 2.0,
@@ -173,9 +190,11 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
       );
       await intent.launch();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al imprimir recibo: $e')),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al imprimir recibo: $e')),
+        );
+      }
     }
   }
 
