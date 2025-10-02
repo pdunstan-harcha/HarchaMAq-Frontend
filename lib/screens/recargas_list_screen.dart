@@ -1,8 +1,6 @@
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:harcha_maquinaria/services/database_helper.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class RecargasListScreen extends StatefulWidget {
   const RecargasListScreen({super.key});
@@ -142,36 +140,19 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
       // RawBT acepta HTML directamente mediante esquema URI
       // Formato: rawbt:base64
 
-      if (kIsWeb) {
-        // Para Web/PWA, usa el esquema URI directamente
-        final encoded = Uri.encodeComponent(htmlRecibo);
-        final url = 'rawbt:base64,$encoded';
-
-        final uri = Uri.parse(url);
-        if (await canLaunchUrl(uri)) {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        } else {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('RawBT no está instalado. Instálalo desde la Play Store.'),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
-        }
-      } else {
-        // Para Android nativo, usa AndroidIntent
-        final intent = AndroidIntent(
-          action: 'android.intent.action.VIEW',
-          data: 'rawbt:base64,${Uri.encodeComponent(htmlRecibo)}',
-        );
-        await intent.launch();
-      }
+      // Para Android nativo, usa AndroidIntent
+      final intent = AndroidIntent(
+        action: 'android.intent.action.VIEW',
+        data: 'rawbt:base64,${Uri.encodeComponent(htmlRecibo)}',
+      );
+      await intent.launch();
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al imprimir recibo: $e')),
+          SnackBar(
+            content: Text('Error al abrir RawBT: $e\n\nAsegúrate de que RawBT esté instalado.'),
+            duration: const Duration(seconds: 4),
+          ),
         );
       }
     }
