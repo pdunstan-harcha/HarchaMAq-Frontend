@@ -43,16 +43,38 @@ class HtmlToEscPos {
         buffer.write('[LOGO HARCHA]$LINE_FEED');
       }
 
-      // Buscar la fecha y número de recibo
-      final strongTags = document.getElementsByTagName('strong');
-      for (var tag in strongTags) {
-        final text = tag.text.trim();
-        if (text.isNotEmpty && !text.startsWith('N°')) {
-          buffer.write(ALIGN_CENTER);
-          buffer.write(BOLD_ON);
-          buffer.write('$text$LINE_FEED');
-          buffer.write(BOLD_OFF);
+      // Buscar elementos dentro del header (fecha y código)
+      final header = document.getElementsByClassName('header');
+      if (header.isNotEmpty) {
+        final divs = header.first.getElementsByTagName('div');
+        for (var div in divs) {
+          final text = div.text.trim();
+          if (text.isNotEmpty) {
+            buffer.write(ALIGN_CENTER);
+            buffer.write(BOLD_ON);
+            buffer.write('$text$LINE_FEED');
+            buffer.write(BOLD_OFF);
+          }
         }
+      }
+
+      // Buscar datos de la empresa (company-info o datosHarcha)
+      var companyInfo = document.getElementsByClassName('company-info');
+      if (companyInfo.isEmpty) {
+        companyInfo = document.getElementsByClassName('datosHarcha');
+      }
+
+      if (companyInfo.isNotEmpty) {
+        buffer.write(ALIGN_CENTER);
+        final text = companyInfo.first.text;
+        final lines = text.split('\n');
+        for (var line in lines) {
+          final trimmed = line.trim();
+          if (trimmed.isNotEmpty) {
+            buffer.write('$trimmed$LINE_FEED');
+          }
+        }
+        buffer.write(LINE_FEED);
       }
 
       // Buscar el título principal (ORDEN ENTREGA COMBUSTIBLES)
@@ -70,26 +92,11 @@ class HtmlToEscPos {
         }
       }
 
-      // Buscar datos de Harcha (RUT, dirección, etc.)
-      final datosHarcha = document.getElementsByClassName('datosHarcha');
-      if (datosHarcha.isNotEmpty) {
-        buffer.write(ALIGN_CENTER);
-        final lines = datosHarcha.first.text.split('\n');
-        for (var line in lines) {
-          final trimmed = line.trim();
-          if (trimmed.isNotEmpty) {
-            buffer.write('$trimmed$LINE_FEED');
-          }
-        }
-        buffer.write(LINE_FEED);
-      }
-
-      // Buscar la tabla principal con los datos del recibo
-      final tables = document.getElementsByTagName('table');
-      for (var table in tables) {
-        final rows = table.getElementsByTagName('tr');
-
+      // Buscar la tabla principal con los datos del recibo (data-table)
+      final dataTables = document.getElementsByClassName('data-table');
+      if (dataTables.isNotEmpty) {
         buffer.write(ALIGN_LEFT);
+        final rows = dataTables.first.getElementsByTagName('tr');
 
         for (var row in rows) {
           final cells = row.getElementsByTagName('td');
@@ -99,43 +106,56 @@ class HtmlToEscPos {
             final value = cells[1].text.trim();
 
             if (label.isNotEmpty) {
-              // Formatear como "LABEL: valor"
               buffer.write(BOLD_ON);
               buffer.write(label);
               buffer.write(BOLD_OFF);
               buffer.write(' $value$LINE_FEED');
             }
-          } else if (cells.length == 1) {
-            final text = cells[0].text.trim();
-            if (text.isNotEmpty) {
-              buffer.write('$text$LINE_FEED');
-            }
           }
         }
+        buffer.write(LINE_FEED);
+      }
 
+      // Buscar observaciones
+      final obsLabel = document.getElementsByClassName('obs-label');
+      final obsText = document.getElementsByClassName('obs-text');
+
+      if (obsLabel.isNotEmpty) {
+        buffer.write(ALIGN_LEFT);
+        buffer.write(BOLD_ON);
+        buffer.write('${obsLabel.first.text.trim()}$LINE_FEED');
+        buffer.write(BOLD_OFF);
+
+        if (obsText.isNotEmpty) {
+          final text = obsText.first.text.trim();
+          if (text.isNotEmpty) {
+            buffer.write('$text$LINE_FEED');
+          }
+        }
         buffer.write(LINE_FEED);
       }
 
       // Buscar sección de firmas
-      final signatureTables = document.querySelectorAll('table[border="0"]');
-      if (signatureTables.length > 1) {
+      final signatures = document.getElementsByClassName('signatures');
+      if (signatures.isNotEmpty) {
         buffer.write(ALIGN_LEFT);
-        buffer.write('$LINE_FEED');
         buffer.write('_' * 42); // Línea de separación
         buffer.write(LINE_FEED);
+        buffer.write(LINE_FEED);
 
-        // Buscar las celdas de firma
-        final lastTable = signatureTables.last;
-        final rows = lastTable.getElementsByTagName('tr');
+        // Buscar divs con class sig-line
+        final sigLines = document.getElementsByClassName('sig-line');
+        final sigNames = signatures.first.getElementsByTagName('strong');
 
-        for (var row in rows) {
-          final cells = row.getElementsByTagName('td');
-          final texts = cells.map((c) => c.text.trim()).where((t) => t.isNotEmpty).toList();
+        if (sigLines.length >= 2 && sigNames.length >= 2) {
+          // Firma operador
+          buffer.write('${sigLines[0].text.trim()}$LINE_FEED');
+          buffer.write('${sigNames[0].text.trim()}$LINE_FEED');
+          buffer.write(LINE_FEED);
 
-          if (texts.isNotEmpty) {
-            buffer.write(texts.join(' | '));
-            buffer.write(LINE_FEED);
-          }
+          // Firma encargado
+          buffer.write('${sigLines[1].text.trim()}$LINE_FEED');
+          buffer.write('${sigNames[1].text.trim()}$LINE_FEED');
         }
       }
 

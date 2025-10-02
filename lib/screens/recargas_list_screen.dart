@@ -219,19 +219,7 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
                   style: TextButton.styleFrom(
                     backgroundColor: Colors.green.shade50,
                   ),
-                  child: const Text('✓ ESC/POS', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop('print_html_intent'),
-                  child: const Text('HTML Intent'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop('print_html_raw'),
-                  child: const Text('HTML Raw'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop('browser'),
-                  child: const Text('Ver'),
+                  child: const Text('Imprimir', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             );
