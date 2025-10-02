@@ -137,44 +137,14 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
     }
   }
 
-  Future<void> _imprimirConPos(BuildContext context, String htmlRecibo) async {
-    try {
-      final intent = AndroidIntent(
-        action: 'android.intent.action.SEND',
-        package: 'ru.a402d.rawbtprinter',
-        type: 'text/html',
-        arguments: <String, dynamic>{
-          'android.intent.extra.TEXT': htmlRecibo,
-        },
-      );
-      await intent.launch();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al imprimir recibo: $e')),
-      );
-    }
-    return;
-  }
-
-  void imprimirReciboPOS(String htmlRecibo) {
+  void imprimirReciboPOS(BuildContext context, String htmlRecibo) async {
     if (kIsWeb) {
-      // Log para debugging
-      print('=== HTML RECIBO PARA RAWBT ===');
-      print('Longitud del HTML: ${htmlRecibo.length}');
-      print('Primeros 500 caracteres:');
-      print(htmlRecibo.substring(
-          0, htmlRecibo.length > 500 ? 500 : htmlRecibo.length));
-      print('=========================');
-
+      // Web/PWA: usa el esquema rawbt://
       final encoded = Uri.encodeComponent(htmlRecibo);
       try {
         final url = 'rawbt://print?data=$encoded';
-        print(
-            'URL RawBT generada (primeros 200 chars): ${url.substring(0, url.length > 200 ? 200 : url.length)}');
         html.window.location.href = url;
       } catch (e) {
-        print('Error con rawbt://, intentando con intent de Android');
-        // Fallback: Intent de Android para RawBT
         final intentUrl = 'intent://print?data=$encoded#Intent;'
             'package=ru.a402d.rawbtprinter;'
             'scheme=rawbt;'
@@ -182,8 +152,22 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
         html.window.location.href = intentUrl;
       }
     } else {
-      // Para Android nativo
-      print('Impresión RawBT solo disponible en Web/PWA con RawBT instalado');
+      // Android nativo: usa AndroidIntent
+      try {
+        final intent = AndroidIntent(
+          action: 'android.intent.action.SEND',
+          package: 'ru.a402d.rawbtprinter',
+          type: 'text/html',
+          arguments: <String, dynamic>{
+            'android.intent.extra.TEXT': htmlRecibo,
+          },
+        );
+        await intent.launch();
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al imprimir recibo: $e')),
+        );
+      }
     }
   }
 
@@ -308,12 +292,10 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
                                         final htmlRecibo = await DatabaseHelper
                                             .obtenerReciboRecargaHtml(
                                                 recarga['id']);
-                                        if (kIsWeb) {
-                                          imprimirReciboPOS(htmlRecibo);
-                                        } else {
-                                          await _imprimirConPos(
-                                              context, htmlRecibo);
-                                        }
+
+                                          imprimirReciboPOS(context, htmlRecibo);
+
+
                                       } catch (e) {
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(
