@@ -1,8 +1,7 @@
-import 'dart:io' show Platform;
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:harcha_maquinaria/services/database_helper.dart';
+import 'package:harcha_maquinaria/utils/platform_helper.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class RecargasListScreen extends StatefulWidget {
@@ -141,20 +140,8 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
   Future<void> imprimirReciboRawBT(BuildContext context, String htmlRecibo) async {
     try {
       print('=== DEBUG IMPRESIÓN ===');
-      print('kIsWeb: $kIsWeb');
-
-      // Detectar plataforma de forma segura
-      String platformName = 'Desconocido';
-      if (kIsWeb) {
-        platformName = 'PWA/Web';
-      } else {
-        try {
-          platformName = Platform.operatingSystem;
-        } catch (e) {
-          platformName = 'Error al detectar plataforma';
-        }
-      }
-      print('Plataforma: $platformName');
+      print('isWeb: ${PlatformHelper.isWeb}');
+      print('Plataforma: ${PlatformHelper.platformName}');
       print('Longitud HTML: ${htmlRecibo.length}');
       print('Primeros 200 caracteres: ${htmlRecibo.substring(0, htmlRecibo.length < 200 ? htmlRecibo.length : 200)}');
 
@@ -178,7 +165,7 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text('Plataforma: $platformName'),
+                    Text('Plataforma: ${PlatformHelper.platformName}'),
                     Text('Longitud HTML: ${htmlRecibo.length}'),
                     Text('Longitud URI: ${rawbtUri.length}'),
                     const SizedBox(height: 10),
@@ -270,7 +257,7 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
     try {
       print('Intentando abrir RawBT...');
 
-      if (kIsWeb) {
+      if (PlatformHelper.isWeb) {
         // Para PWA: usar url_launcher que funciona en web
         print('Usando url_launcher para PWA');
         final uri = Uri.parse(rawbtUri);
@@ -333,7 +320,7 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
       print('Abriendo HTML en navegador...');
       final dataUri = 'data:text/html;charset=utf-8,${Uri.encodeComponent(htmlRecibo)}';
 
-      if (kIsWeb) {
+      if (PlatformHelper.isWeb) {
         // Para PWA
         final uri = Uri.parse(dataUri);
         await launchUrl(uri, mode: LaunchMode.externalApplication);
