@@ -1,7 +1,9 @@
 import 'package:android_intent_plus/android_intent.dart';
 import 'package:html_to_image_flutter/html_to_image_flutter.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:screenshot/screenshot.dart';
+import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:harcha_maquinaria/services/database_helper.dart';
 import 'dart:typed_data';
 import 'dart:io';
@@ -141,16 +143,24 @@ class _RecargasListScreenState extends State<RecargasListScreen> {
 
   Future<void> imprimirReciboComoImagen(BuildContext context, String htmlRecibo) async {
     try {
-      // Convierte el HTML a imagen usando html_to_image_flutter
-      final Uint8List imageBytes = await HtmlToImage.convertToImage(
-        content: htmlRecibo,
-        delay: Duration(milliseconds: 500), // Tiempo para renderizar
-        width: 300, // Ancho para recibos térmicos
+      final screenshotController = ScreenshotController();
+
+      // Renderiza el HTML como widget y captura como imagen
+      final imageBytes = await screenshotController.captureFromWidget(
+        Material(
+          child: Container(
+            width: 300,
+            color: Colors.white,
+            padding: EdgeInsets.all(16),
+            child: HtmlWidget(htmlRecibo),
+          ),
+        ),
+        pixelRatio: 2.0,
       );
 
-      // Guarda la imagen temporalmente
-      final tempDir = Directory.systemTemp;
-      final file = File('${tempDir.path}/recibo.png');
+      // Guarda la imagen
+      final directory = await getTemporaryDirectory();
+      final file = File('${directory.path}/recibo.png');
       await file.writeAsBytes(imageBytes);
 
       // Envía a RawBT
