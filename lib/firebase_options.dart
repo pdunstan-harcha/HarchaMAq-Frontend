@@ -41,8 +41,8 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: ${{secrets.API_KEY_FIREBASE}},
-    appId: ${{secrets.APP_ID}},
+    apiKey: 'AIzaSyA09fQCsx1mOJJzByxsc8SL2wVODdM3jEQ',
+    appId: '1:982164175631:web:4754bbfbc3393fd3119c7a',
     messagingSenderId: '982164175631',
     projectId: 'harchaappfront',
     authDomain: 'harchaappfront.firebaseapp.com',
