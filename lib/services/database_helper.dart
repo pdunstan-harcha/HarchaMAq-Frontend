@@ -1,9 +1,13 @@
 import 'package:harcha_maquinaria/services/api_client.dart';
 import 'package:harcha_maquinaria/services/secure_storage.dart';
+import 'package:harcha_maquinaria/services/connectivity_manager.dart';
+import 'package:harcha_maquinaria/services/offline_storage_service.dart';
 import '../utils/logger.dart';
 
 class DatabaseHelper {
   static final _api = ApiClient();
+  static final _connectivityManager = ConnectivityManager();
+  static final _offlineStorage = OfflineStorageService();
 
   static Future<Map<String, dynamic>?> login(
     String usuario,
@@ -261,6 +265,64 @@ class DatabaseHelper {
     double? kilometros,
     String? patente,
   }) async {
+    // Verificar conectividad antes de proceder
+    final isOnline = await _connectivityManager.checkConnectivity();
+
+    if (isOnline) {
+      // Intentar registro online normal
+      return await _registrarRecargaOnline(
+        idMaquina: idMaquina,
+        usuarioId: usuarioId,
+        fechahora: fechahora,
+        litros: litros,
+        obraId: obraId,
+        clienteId: clienteId,
+        operadorId: operadorId,
+        rutOperador: rutOperador,
+        nombreOperador: nombreOperador,
+        foto: foto,
+        observaciones: observaciones,
+        odometro: odometro,
+        kilometros: kilometros,
+        patente: patente,
+      );
+    } else {
+      // Registro offline
+      return await _registrarRecargaOffline(
+        idMaquina: idMaquina,
+        usuarioId: usuarioId,
+        fechahora: fechahora,
+        litros: litros,
+        obraId: obraId,
+        clienteId: clienteId,
+        operadorId: operadorId,
+        rutOperador: rutOperador,
+        nombreOperador: nombreOperador,
+        observaciones: observaciones,
+        odometro: odometro,
+        kilometros: kilometros,
+        patente: patente,
+      );
+    }
+  }
+
+  /// Método original para registro online (renombrado)
+  static Future<Map<String, dynamic>> _registrarRecargaOnline({
+    required int idMaquina,
+    required int usuarioId,
+    required String fechahora,
+    required double litros,
+    required int obraId,
+    required int clienteId,
+    int? operadorId,
+    String? rutOperador,
+    String? nombreOperador,
+    String? foto,
+    String? observaciones,
+    double? odometro,
+    double? kilometros,
+    String? patente,
+  }) async {
     try {
       // Obtener datos de la máquina (incluye recarga anterior)
       SafeLogger.debug('Obteniendo datos de máquina ID: $idMaquina');
@@ -289,7 +351,8 @@ class DatabaseHelper {
         if (nombreOperador != null && nombreOperador.isNotEmpty) {
           payload['OPERADOR'] = nombreOperador;
         }
-        SafeLogger.debug('Datos de operador agregados - ID: $operadorId, RUT: $rutOperador, Nombre: $nombreOperador');
+        SafeLogger.debug(
+            'Datos de operador agregados - ID: $operadorId, RUT: $rutOperador, Nombre: $nombreOperador');
       }
 
       // Agregar datos de recarga anterior si existen
@@ -315,6 +378,54 @@ class DatabaseHelper {
     }
   }
 
+  /// Método para registro offline
+  static Future<Map<String, dynamic>> _registrarRecargaOffline({
+    required int idMaquina,
+    required int usuarioId,
+    required String fechahora,
+    required double litros,
+    required int obraId,
+    required int clienteId,
+    int? operadorId,
+    String? rutOperador,
+    String? nombreOperador,
+    String? observaciones,
+    double? odometro,
+    double? kilometros,
+    String? patente,
+  }) async {
+    try {
+      SafeLogger.info(
+          'Guardando recarga offline - Máquina: $idMaquina, Litros: $litros');
+
+      final uuid = await _offlineStorage.saveRecargaOffline(
+        idMaquina: idMaquina,
+        usuarioId: usuarioId,
+        fechahora: fechahora,
+        litros: litros,
+        obraId: obraId,
+        clienteId: clienteId,
+        operadorId: operadorId,
+        rutOperador: rutOperador,
+        nombreOperador: nombreOperador,
+        observaciones: observaciones,
+        odometro: odometro,
+        kilometros: kilometros,
+        patente: patente,
+      );
+
+      return {
+        'success': true,
+        'message': 'Recarga guardada offline correctamente',
+        'codigo_recarga': uuid,
+        'offline': true,
+      };
+    } catch (e) {
+      SafeLogger.error('Error al guardar recarga offline', e);
+      throw Exception('Error al guardar recarga offline: $e');
+    }
+  }
+
   static Future<List<Map<String, dynamic>>> obtenerMaquinas() async {
     try {
       final response = await _api.get('/maquinas/');
@@ -330,11 +441,11 @@ class DatabaseHelper {
           'PATENTE': item['PATENTE'] ?? '',
           'ESTADO': item['ESTADO'] ?? '',
           'ID_MAQUINA': item['ID_MAQUINA'] ?? '',
-          'CODIGO_MAQUINA': item['CODIGO_MAQUINA'].toString() ?? '',
+          'CODIGO_MAQUINA': item['CODIGO_MAQUINA']?.toString() ?? '',
           'HR_ACTUAL': item['HR_Actual'],
           'KM_ACTUAL': item['KM_Actual'],
           'OPERADORES': item['OPERADORES'] ?? [],
-          'OBSERVACIONES': item['OBSERVACIONES'].toString() ?? '',
+          'OBSERVACIONES': item['OBSERVACIONES']?.toString() ?? '',
           'FECHA_CREACION': item['FECHA_CREACION'],
           'FECHA_ACTUALIZACION': item['FECHA_ACTUALIZACION'],
         };

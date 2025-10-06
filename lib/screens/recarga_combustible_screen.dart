@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:harcha_maquinaria/services/database_helper.dart';
+import '../providers/auth_provider.dart';
 import '../utils/logger.dart';
 
 class RecargaCombustibleScreen extends StatefulWidget {
@@ -218,14 +220,17 @@ class _RecargaCombustibleScreenState extends State<RecargaCombustibleScreen> {
   Future<void> _cargarDatosOperador(int operadorId) async {
     try {
       SafeLogger.debug('Cargando datos del operador ID: $operadorId');
-      final operadorData = await DatabaseHelper.obtenerOperadorPorId(operadorId);
+      final operadorData =
+          await DatabaseHelper.obtenerOperadorPorId(operadorId);
 
       setState(() {
         _rutOperador = operadorData['RUT'];
-        _nombreOperador = operadorData['usuario'] ?? operadorData['NOMBREUSUARIO'];
+        _nombreOperador =
+            operadorData['usuario'] ?? operadorData['NOMBREUSUARIO'];
       });
 
-      SafeLogger.debug('Datos del operador cargados - RUT: $_rutOperador, Nombre: $_nombreOperador');
+      SafeLogger.debug(
+          'Datos del operador cargados - RUT: $_rutOperador, Nombre: $_nombreOperador');
     } catch (e) {
       SafeLogger.error('Error al cargar datos del operador', e);
       setState(() {
@@ -337,12 +342,16 @@ class _RecargaCombustibleScreenState extends State<RecargaCombustibleScreen> {
       );
 
       if (result['success'] == true) {
+        final isOffline = result['offline'] == true;
+        final message = isOffline
+            ? 'Recarga guardada offline${result['codigo_recarga'] != null ? ': ${result['codigo_recarga']}' : ''}\n(Se sincronizará automáticamente cuando haya conexión)'
+            : 'Recarga registrada correctamente${result['codigo_recarga'] != null ? ': ${result['codigo_recarga']}' : ''}';
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Recarga registrada correctamente${result['codigo_recarga'] != null ? ': ${result['codigo_recarga']}' : ''}',
-            ),
-            backgroundColor: Colors.green,
+            content: Text(message),
+            backgroundColor: isOffline ? Colors.orange : Colors.green,
+            duration: Duration(seconds: isOffline ? 5 : 3),
           ),
         );
 
@@ -387,461 +396,508 @@ class _RecargaCombustibleScreenState extends State<RecargaCombustibleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Nueva Recarga de Combustible'),
-        backgroundColor: const Color(0xFF1E3A8A),
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _cargarDatos,
-            tooltip: 'Actualizar datos',
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, child) {
+        return Scaffold(
+          appBar: AppBar(
+            title: Row(
+              children: [
+                const Expanded(
+                  child: Text('Nueva Recarga de Combustible'),
+                ),
+                // Indicador de conectividad
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: authProvider.isOnline ? Colors.green : Colors.orange,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        authProvider.isOnline ? Icons.wifi : Icons.wifi_off,
+                        size: 14,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        authProvider.isOnline ? 'Online' : 'Offline',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFF1E3A8A),
+            foregroundColor: Colors.white,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: _cargarDatos,
+                tooltip: 'Actualizar datos',
+              ),
+            ],
           ),
-        ],
-      ),
-      body: _isLoadingData
-          ? const Center(child: CircularProgressIndicator())
-          : Form(
-              key: _formKey,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // ✅ FECHA Y HORA
-                    InkWell(
-                      onTap: () async {
-                        final fecha = await showDatePicker(
-                          context: context,
-                          initialDate: _fechaHora,
-                          firstDate: DateTime.now().subtract(
-                            const Duration(days: 30),
-                          ),
-                          lastDate: DateTime.now().add(const Duration(days: 1)),
-                        );
-                        if (fecha != null) {
-                          final hora = await showTimePicker(
-                            context: context,
-                            initialTime: TimeOfDay.fromDateTime(_fechaHora),
-                          );
-                          if (hora != null) {
-                            setState(() {
-                              _fechaHora = DateTime(
-                                fecha.year,
-                                fecha.month,
-                                fecha.day,
-                                hora.hour,
-                                hora.minute,
-                              );
-                            });
-                          }
-                        }
-                      },
-                      child: InputDecorator(
-                        decoration: const InputDecoration(
-                          labelText: 'Fecha y Hora *',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.access_time),
-                        ),
-                        child: Text(
-                          '${_fechaHora.day.toString().padLeft(2, '0')}/${_fechaHora.month.toString().padLeft(2, '0')}/${_fechaHora.year} '
-                          '${_fechaHora.hour.toString().padLeft(2, '0')}:'
-                          '${_fechaHora.minute.toString().padLeft(2, '0')}',
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // ✅ MÁQUINA
-                    DropdownButtonFormField<int>(
-                      value: _idMaquina,
-                      decoration: const InputDecoration(
-                        labelText: 'Máquina *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.build),
-                      ),
-                      items: _maquinas.map<DropdownMenuItem<int>>((maquina) {
-                        final nombre = _getNombreMaquina(maquina);
-
-                        return DropdownMenuItem<int>(
-                          value: maquina['pkMaquina'],
-                          child: Container(
-                            constraints: const BoxConstraints(
-                              maxWidth: 280,
-                            ), // ✅ LIMITAR ANCHO
-                            child: Text(
-                              nombre,
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                              style: const TextStyle(fontSize: 14),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: _onMaquinaChanged,
-                      validator: (value) {
-                        if (value == null) return 'Seleccione una máquina';
-                        return null;
-                      },
-                      // ✅ CONFIGURACIONES ADICIONALES PARA EVITAR OVERFLOW
-                      isExpanded: true,
-                      menuMaxHeight: 300,
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // ✅ PETROLERO (USUARIO LOGUEADO - READONLY)
-                    TextFormField(
-                      initialValue: widget.usuarioNombre,
-                      decoration: const InputDecoration(
-                        labelText: 'Petrolero *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.person),
-                        helperText: 'Usuario logueado (automático)',
-                      ),
-                      readOnly: true,
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // ✅ OPERADOR
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          body: _isLoadingData
+              ? const Center(child: CircularProgressIndicator())
+              : Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        if (_idMaquina == null)
-                          // Cuando no hay máquina seleccionada
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey.shade300),
-                              borderRadius: BorderRadius.circular(4),
+                        // ✅ FECHA Y HORA
+                        InkWell(
+                          onTap: () async {
+                            final fecha = await showDatePicker(
+                              context: context,
+                              initialDate: _fechaHora,
+                              firstDate: DateTime.now().subtract(
+                                const Duration(days: 30),
+                              ),
+                              lastDate:
+                                  DateTime.now().add(const Duration(days: 1)),
+                            );
+                            if (fecha != null) {
+                              final hora = await showTimePicker(
+                                context: context,
+                                initialTime: TimeOfDay.fromDateTime(_fechaHora),
+                              );
+                              if (hora != null) {
+                                setState(() {
+                                  _fechaHora = DateTime(
+                                    fecha.year,
+                                    fecha.month,
+                                    fecha.day,
+                                    hora.hour,
+                                    hora.minute,
+                                  );
+                                });
+                              }
+                            }
+                          },
+                          child: InputDecorator(
+                            decoration: const InputDecoration(
+                              labelText: 'Fecha y Hora *',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.access_time),
                             ),
-                            child: const Row(
-                              children: [
-                                Icon(Icons.engineering, color: Colors.grey),
-                                SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    'Seleccione una máquina para ver operadores',
-                                    style: TextStyle(color: Colors.grey),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
+                            child: Text(
+                              '${_fechaHora.day.toString().padLeft(2, '0')}/${_fechaHora.month.toString().padLeft(2, '0')}/${_fechaHora.year} '
+                              '${_fechaHora.hour.toString().padLeft(2, '0')}:'
+                              '${_fechaHora.minute.toString().padLeft(2, '0')}',
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // ✅ MÁQUINA
+                        DropdownButtonFormField<int>(
+                          value: _idMaquina,
+                          decoration: const InputDecoration(
+                            labelText: 'Máquina *',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.build),
+                          ),
+                          items:
+                              _maquinas.map<DropdownMenuItem<int>>((maquina) {
+                            final nombre = _getNombreMaquina(maquina);
+
+                            return DropdownMenuItem<int>(
+                              value: maquina['pkMaquina'],
+                              child: Container(
+                                constraints: const BoxConstraints(
+                                  maxWidth: 280,
+                                ), // ✅ LIMITAR ANCHO
+                                child: Text(
+                                  nombre,
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                  style: const TextStyle(fontSize: 14),
                                 ),
-                              ],
-                            ),
-                          )
-                        else if (_loadingOperadores)
-                          // Cuando está cargando
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.blue.shade300),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Row(
-                              children: [
-                                SizedBox(
-                                  width: 20,
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: _onMaquinaChanged,
+                          validator: (value) {
+                            if (value == null) return 'Seleccione una máquina';
+                            return null;
+                          },
+                          // ✅ CONFIGURACIONES ADICIONALES PARA EVITAR OVERFLOW
+                          isExpanded: true,
+                          menuMaxHeight: 300,
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // ✅ PETROLERO (USUARIO LOGUEADO - READONLY)
+                        TextFormField(
+                          initialValue: widget.usuarioNombre,
+                          decoration: const InputDecoration(
+                            labelText: 'Petrolero *',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.person),
+                            helperText: 'Usuario logueado (automático)',
+                          ),
+                          readOnly: true,
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // ✅ OPERADOR
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (_idMaquina == null)
+                              // Cuando no hay máquina seleccionada
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  border:
+                                      Border.all(color: Colors.grey.shade300),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.engineering, color: Colors.grey),
+                                    SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        'Seleccione una máquina para ver operadores',
+                                        style: TextStyle(color: Colors.grey),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            else if (_loadingOperadores)
+                              // Cuando está cargando
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  border:
+                                      Border.all(color: Colors.blue.shade300),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    ),
+                                    SizedBox(width: 12),
+                                    Text('Cargando operadores...'),
+                                  ],
+                                ),
+                              )
+                            else if (_operadores.isEmpty)
+                              // Cuando no hay operadores
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  border:
+                                      Border.all(color: Colors.orange.shade300),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.info_outline,
+                                        color: Colors.orange),
+                                    SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        'Esta máquina no tiene operadores asignados',
+                                        style: TextStyle(color: Colors.orange),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            else
+                              // Dropdown normal cuando hay operadores
+                              DropdownButtonFormField<int>(
+                                value: _operadorId,
+                                decoration: const InputDecoration(
+                                  labelText: 'Operador (Opcional)',
+                                  border: OutlineInputBorder(),
+                                  prefixIcon: Icon(Icons.engineering),
+                                ),
+                                hint: const Text('Seleccionar operador'),
+                                onChanged: (int? value) {
+                                  setState(() {
+                                    _operadorId = value;
+                                    _rutOperador = null;
+                                    _nombreOperador = null;
+                                  });
+
+                                  // Cargar datos del operador si se seleccionó uno
+                                  if (value != null) {
+                                    _cargarDatosOperador(value);
+                                  }
+                                },
+                                items: [
+                                  const DropdownMenuItem<int>(
+                                    value: null,
+                                    child: Text(
+                                      'Sin operador asignado',
+                                      style: TextStyle(
+                                        fontStyle: FontStyle.italic,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ),
+                                  ..._operadores.map<DropdownMenuItem<int>>((
+                                    operador,
+                                  ) {
+                                    final id = operador['id'] as int;
+                                    final nombre = operador['nombre'] as String;
+
+                                    return DropdownMenuItem<int>(
+                                      value: id,
+                                      child: Text(
+                                        nombre,
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      ),
+                                    );
+                                  }).toList(),
+                                ],
+                              ),
+                            if (_operadorId != null)
+                              Container(
+                                margin: const EdgeInsets.only(top: 8),
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.shade50,
+                                  border:
+                                      Border.all(color: Colors.green.shade200),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.check_circle,
+                                      color: Colors.green,
+                                      size: 16,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    const Text(
+                                      'Operador: ',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        _obtenerNombreOperadorSeleccionado(),
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.clear, size: 16),
+                                      onPressed: () {
+                                        setState(() {
+                                          _operadorId = null;
+                                        });
+                                      },
+                                      tooltip: 'Quitar operador',
+                                    ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // ✅ PATENTE (AUTOMÁTICO)
+                        TextFormField(
+                          controller: _patenteController,
+                          decoration: const InputDecoration(
+                            labelText: 'Patente',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.directions_car),
+                            helperText: 'Se completa automáticamente',
+                          ),
+                          readOnly: true,
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // ✅ HORÓMETRO
+                        TextFormField(
+                          controller: _horometroController,
+                          decoration: const InputDecoration(
+                            labelText: 'Horómetro',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.schedule),
+                            suffixText: 'Hr',
+                          ),
+                          keyboardType: TextInputType.number,
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // ✅ KILÓMETROS
+                        TextFormField(
+                          controller: _kilometrosController,
+                          decoration: const InputDecoration(
+                            labelText: 'Kilómetros *',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.route),
+                            suffixText: 'km',
+                          ),
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Ingrese los kilómetros';
+                            }
+                            final km = double.tryParse(value);
+                            if (km == null || km < 0) {
+                              return 'Ingrese un valor válido mayor o igual a 0';
+                            }
+                            return null;
+                          },
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // ✅ LITROS
+                        TextFormField(
+                          controller: _litrosController,
+                          decoration: const InputDecoration(
+                            labelText: 'Litros *',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.local_gas_station),
+                            suffixText: 'L',
+                          ),
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Ingrese los litros';
+                            }
+                            final litros = double.tryParse(value);
+                            if (litros == null || litros <= 0) {
+                              return 'Ingrese un valor válido mayor a 0';
+                            }
+                            return null;
+                          },
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // ✅ OBRA
+                        DropdownButtonFormField<int>(
+                          value: _obraId,
+                          decoration: const InputDecoration(
+                            labelText: 'Obra *',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.location_on),
+                          ),
+                          items: _obras.map((obra) {
+                            return DropdownMenuItem<int>(
+                              value: obra['pkObra'],
+                              child: Text(
+                                _getNombreObra(obra),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (value) => setState(() => _obraId = value),
+                          validator: (value) {
+                            if (value == null) return 'Seleccione una obra';
+                            return null;
+                          },
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // ✅ CLIENTE
+                        DropdownButtonFormField<int>(
+                          value: _clienteId,
+                          decoration: const InputDecoration(
+                            labelText: 'Cliente *',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.business),
+                          ),
+                          items: _clientes.map((cliente) {
+                            return DropdownMenuItem<int>(
+                              value: cliente['pkCliente'],
+                              child: Text(
+                                _getNombreCliente(cliente),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (value) =>
+                              setState(() => _clienteId = value),
+                          validator: (value) {
+                            if (value == null) return 'Seleccione un cliente';
+                            return null;
+                          },
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // ✅ OBSERVACIONES
+                        TextFormField(
+                          controller: _observacionesController,
+                          decoration: const InputDecoration(
+                            labelText: 'Observaciones',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.note),
+                          ),
+                          maxLines: 3,
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // ✅ BOTÓN GUARDAR
+                        ElevatedButton(
+                          onPressed: _isLoading ? null : _guardar,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF1E3A8A),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                          child: _isLoading
+                              ? const SizedBox(
                                   height: 20,
+                                  width: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
                                   ),
+                                )
+                              : const Text(
+                                  'Guardar Recarga',
+                                  style: TextStyle(fontSize: 16),
                                 ),
-                                SizedBox(width: 12),
-                                Text('Cargando operadores...'),
-                              ],
-                            ),
-                          )
-                        else if (_operadores.isEmpty)
-                          // Cuando no hay operadores
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.orange.shade300),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Row(
-                              children: [
-                                Icon(Icons.info_outline, color: Colors.orange),
-                                SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    'Esta máquina no tiene operadores asignados',
-                                    style: TextStyle(color: Colors.orange),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        else
-                          // Dropdown normal cuando hay operadores
-                          DropdownButtonFormField<int>(
-                            value: _operadorId,
-                            decoration: const InputDecoration(
-                              labelText: 'Operador (Opcional)',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.engineering),
-                            ),
-                            hint: const Text('Seleccionar operador'),
-                            onChanged: (int? value) {
-                              setState(() {
-                                _operadorId = value;
-                                _rutOperador = null;
-                                _nombreOperador = null;
-                              });
-
-                              // Cargar datos del operador si se seleccionó uno
-                              if (value != null) {
-                                _cargarDatosOperador(value);
-                              }
-                            },
-                            items: [
-                              const DropdownMenuItem<int>(
-                                value: null,
-                                child: Text(
-                                  'Sin operador asignado',
-                                  style: TextStyle(
-                                    fontStyle: FontStyle.italic,
-                                    color: Colors.grey,
-                                  ),
-                                ),
-                              ),
-                              ..._operadores.map<DropdownMenuItem<int>>((
-                                operador,
-                              ) {
-                                final id = operador['id'] as int;
-                                final nombre = operador['nombre'] as String;
-
-                                return DropdownMenuItem<int>(
-                                  value: id,
-                                  child: Text(
-                                    nombre,
-                                    overflow: TextOverflow.ellipsis,
-                                    maxLines: 1,
-                                  ),
-                                );
-                              }).toList(),
-                            ],
-                          ),
-                        if (_operadorId != null)
-                          Container(
-                            margin: const EdgeInsets.only(top: 8),
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.green.shade50,
-                              border: Border.all(color: Colors.green.shade200),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.check_circle,
-                                  color: Colors.green,
-                                  size: 16,
-                                ),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  'Operador: ',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                                Expanded(
-                                  child: Text(
-                                    _obtenerNombreOperadorSeleccionado(),
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 14),
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.clear, size: 16),
-                                  onPressed: () {
-                                    setState(() {
-                                      _operadorId = null;
-                                    });
-                                  },
-                                  tooltip: 'Quitar operador',
-                                ),
-                              ],
-                            ),
-                          ),
+                        ),
                       ],
                     ),
-
-                    const SizedBox(height: 16),
-
-                    // ✅ PATENTE (AUTOMÁTICO)
-                    TextFormField(
-                      controller: _patenteController,
-                      decoration: const InputDecoration(
-                        labelText: 'Patente',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.directions_car),
-                        helperText: 'Se completa automáticamente',
-                      ),
-                      readOnly: true,
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // ✅ HORÓMETRO
-                    TextFormField(
-                      controller: _horometroController,
-                      decoration: const InputDecoration(
-                        labelText: 'Horómetro',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.schedule),
-                        suffixText: 'Hr',
-                      ),
-                      keyboardType: TextInputType.number,
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // ✅ KILÓMETROS
-                    TextFormField(
-                      controller: _kilometrosController,
-                      decoration: const InputDecoration(
-                        labelText: 'Kilómetros *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.route),
-                        suffixText: 'km',
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Ingrese los kilómetros';
-                        }
-                        final km = double.tryParse(value);
-                        if (km == null || km < 0) {
-                          return 'Ingrese un valor válido mayor o igual a 0';
-                        }
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // ✅ LITROS
-                    TextFormField(
-                      controller: _litrosController,
-                      decoration: const InputDecoration(
-                        labelText: 'Litros *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.local_gas_station),
-                        suffixText: 'L',
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Ingrese los litros';
-                        }
-                        final litros = double.tryParse(value);
-                        if (litros == null || litros <= 0) {
-                          return 'Ingrese un valor válido mayor a 0';
-                        }
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // ✅ OBRA
-                    DropdownButtonFormField<int>(
-                      value: _obraId,
-                      decoration: const InputDecoration(
-                        labelText: 'Obra *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.location_on),
-                      ),
-                      items: _obras.map((obra) {
-                        return DropdownMenuItem<int>(
-                          value: obra['pkObra'],
-                          child: Text(
-                            _getNombreObra(obra),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (value) => setState(() => _obraId = value),
-                      validator: (value) {
-                        if (value == null) return 'Seleccione una obra';
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // ✅ CLIENTE
-                    DropdownButtonFormField<int>(
-                      value: _clienteId,
-                      decoration: const InputDecoration(
-                        labelText: 'Cliente *',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.business),
-                      ),
-                      items: _clientes.map((cliente) {
-                        return DropdownMenuItem<int>(
-                          value: cliente['pkCliente'],
-                          child: Text(
-                            _getNombreCliente(cliente),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (value) => setState(() => _clienteId = value),
-                      validator: (value) {
-                        if (value == null) return 'Seleccione un cliente';
-                        return null;
-                      },
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // ✅ OBSERVACIONES
-                    TextFormField(
-                      controller: _observacionesController,
-                      decoration: const InputDecoration(
-                        labelText: 'Observaciones',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.note),
-                      ),
-                      maxLines: 3,
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // ✅ BOTÓN GUARDAR
-                    ElevatedButton(
-                      onPressed: _isLoading ? null : _guardar,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1E3A8A),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
-                                ),
-                              ),
-                            )
-                          : const Text(
-                              'Guardar Recarga',
-                              style: TextStyle(fontSize: 16),
-                            ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
+        );
+      },
     );
   }
 

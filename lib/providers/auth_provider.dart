@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
 import '../services/secure_storage.dart';
 import '../services/database_helper.dart';
+import '../services/connectivity_manager.dart';
+import '../services/sync_service.dart';
 import '../utils/logger.dart';
 
 class AuthProvider with ChangeNotifier {
   bool _isAuthenticated = false;
   Map<String, dynamic>? _user;
   bool _isLoading = false;
+  final ConnectivityManager _connectivityManager = ConnectivityManager();
+  final SyncService _syncService = SyncService();
 
   bool get isAuthenticated => _isAuthenticated;
   Map<String, dynamic>? get user => _user;
   bool get isLoading => _isLoading;
   String? get userRole => _user?['ROL'];
   int? get userId => _user?['pkUsuario'];
+  bool get isOnline => _connectivityManager.isOnline;
 
   // Verifica si el usuario está autenticado al iniciar la app
   Future<void> checkAuth() async {
@@ -20,6 +25,12 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      // Inicializar monitor de conectividad
+      await _connectivityManager.initialize();
+
+      // Inicializar servicio de sincronización
+      await _syncService.initialize();
+
       final token = await SecureStorage.getToken();
       if (token != null) {
         _isAuthenticated = true;
