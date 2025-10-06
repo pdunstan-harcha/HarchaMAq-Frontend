@@ -1,16 +1,1 @@
-{
-    "hosting": {
-        "public": "build/web",
-        "ignore": [
-        "firebase.json",
-        "**/.*",
-        "**/node_modules/**"
-        ],
-        "rewrites": [
-        {
-            "source": "**",
-            "destination": "/index.html"
-        }
-        ]
-    }
-}
+{"hosting":{"public":"build/web","ignore":["firebase.json","**/.*","**/node_modules/**"],"rewrites":[{"source":"**","destination":"/index.html"}]},"flutter":{"platforms":{"android":{"default":{"projectId":"harchaappfront","appId":"1:982164175631:android:10ec50502528f173119c7a","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"harchaappfront","configurations":{"android":"1:982164175631:android:10ec50502528f173119c7a","ios":"1:982164175631:ios:eaa6c07282ef3cf1119c7a","macos":"1:982164175631:ios:eaa6c07282ef3cf1119c7a","web":"1:982164175631:web:4754bbfbc3393fd3119c7a","windows":"1:982164175631:web:dc463e94692f3a61119c7a"}}}}}}

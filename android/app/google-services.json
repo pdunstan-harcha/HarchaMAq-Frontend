@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "982164175631",
+    "project_id": "harchaappfront",
+    "storage_bucket": "harchaappfront.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:982164175631:android:10ec50502528f173119c7a",
+        "android_client_info": {
+          "package_name": "com.example.harcha_maquinaria"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCclJP9KDFRud_WOTsxEJ8BCw-MPIoB1wk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
