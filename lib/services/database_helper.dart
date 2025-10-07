@@ -428,90 +428,238 @@ class DatabaseHelper {
 
   static Future<List<Map<String, dynamic>>> obtenerMaquinas() async {
     try {
-      final response = await _api.get('/maquinas/');
+      final isOnline = await _connectivityManager.checkConnectivity();
 
-      // Procesar la respuesta manejando valores null
-      final List<dynamic> rawData = response['data'] ?? [];
-      return rawData.map<Map<String, dynamic>>((item) {
-        return <String, dynamic>{
-          'pkMaquina': item['pkMaquina'],
-          'MAQUINA': item['MAQUINA'] ?? '',
-          'MARCA': item['MARCA'] ?? '',
-          'MODELO': item['MODELO'] ?? '',
-          'PATENTE': item['PATENTE'] ?? '',
-          'ESTADO': item['ESTADO'] ?? '',
-          'ID_MAQUINA': item['ID_MAQUINA'] ?? '',
-          'CODIGO_MAQUINA': item['CODIGO_MAQUINA']?.toString() ?? '',
-          'HR_ACTUAL': item['HR_Actual'],
-          'KM_ACTUAL': item['KM_Actual'],
-          'OPERADORES': item['OPERADORES'] ?? [],
-          'OBSERVACIONES': item['OBSERVACIONES']?.toString() ?? '',
-          'FECHA_CREACION': item['FECHA_CREACION'],
-          'FECHA_ACTUALIZACION': item['FECHA_ACTUALIZACION'],
-        };
-      }).toList();
+      if (isOnline) {
+        // Online: obtener desde API y actualizar caché
+        final response = await _api.get('/maquinas/');
+        final List<dynamic> rawData = response['data'] ?? [];
+        final maquinas = rawData.map<Map<String, dynamic>>((item) {
+          return <String, dynamic>{
+            'pkMaquina': item['pkMaquina'],
+            'MAQUINA': item['MAQUINA'] ?? '',
+            'MARCA': item['MARCA'] ?? '',
+            'MODELO': item['MODELO'] ?? '',
+            'PATENTE': item['PATENTE'] ?? '',
+            'ESTADO': item['ESTADO'] ?? '',
+            'ID_MAQUINA': item['ID_MAQUINA'] ?? '',
+            'CODIGO_MAQUINA': item['CODIGO_MAQUINA']?.toString() ?? '',
+            'HR_ACTUAL': item['HR_Actual'],
+            'KM_ACTUAL': item['KM_Actual'],
+            'OPERADORES': item['OPERADORES'] ?? [],
+            'OBSERVACIONES': item['OBSERVACIONES']?.toString() ?? '',
+            'FECHA_CREACION': item['FECHA_CREACION'],
+            'FECHA_ACTUALIZACION': item['FECHA_ACTUALIZACION'],
+          };
+        }).toList();
+
+        // Guardar en caché
+        await _offlineStorage.cacheMaquinas(maquinas);
+        SafeLogger.info(
+            'Máquinas obtenidas online y cacheadas: ${maquinas.length}');
+
+        return maquinas;
+      } else {
+        // Offline: obtener desde caché
+        final cachedMaquinas = await _offlineStorage.getCachedMaquinas();
+        SafeLogger.info(
+            'Máquinas obtenidas desde caché: ${cachedMaquinas.length}');
+        return cachedMaquinas;
+      }
     } catch (e) {
-      throw Exception('Error al obtener máquinas: $e');
+      // Si falla online, intentar caché como fallback
+      SafeLogger.warning('Error al obtener máquinas online, usando caché', e);
+      final cachedMaquinas = await _offlineStorage.getCachedMaquinas();
+      if (cachedMaquinas.isEmpty) {
+        throw Exception('No hay datos disponibles offline');
+      }
+      return cachedMaquinas;
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> obtenerObras() async {
+    try {
+      final isOnline = await _connectivityManager.checkConnectivity();
+
+      if (isOnline) {
+        final response = await _api.get('/obras/');
+        final List<dynamic> rawData = response['data'] ?? [];
+        final obras = rawData.map<Map<String, dynamic>>((item) {
+          return <String, dynamic>{
+            'pkObra': item['pkObra'] ?? item['id'],
+            'ID_OBRA': item['ID_OBRA'] ?? item['id_obra'] ?? '',
+            'NOMBRE': item['NOMBRE'] ?? item['nombre'] ?? '',
+            'DIRECCION': item['DIRECCION'] ?? item['direccion'] ?? '',
+            'nombre': item['nombre'] ?? item['NOMBRE'] ?? '',
+          };
+        }).toList();
+
+        await _offlineStorage.cacheObras(obras);
+        SafeLogger.info('Obras obtenidas online y cacheadas: ${obras.length}');
+        return obras;
+      } else {
+        final cachedObras = await _offlineStorage.getCachedObras();
+        SafeLogger.info('Obras obtenidas desde caché: ${cachedObras.length}');
+        return cachedObras;
+      }
+    } catch (e) {
+      SafeLogger.warning('Error al obtener obras online, usando caché', e);
+      final cachedObras = await _offlineStorage.getCachedObras();
+      if (cachedObras.isEmpty) {
+        throw Exception('No hay datos disponibles offline');
+      }
+      return cachedObras;
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> obtenerClientes() async {
+    try {
+      final isOnline = await _connectivityManager.checkConnectivity();
+
+      if (isOnline) {
+        final response = await _api.get('/clientes/');
+        final List<dynamic> rawData = response['data'] ?? [];
+        final clientes = rawData.map<Map<String, dynamic>>((item) {
+          return <String, dynamic>{
+            'pkCliente': item['pkCliente'] ?? item['id'],
+            'ID_CLIENTE': item['ID_CLIENTE'] ?? item['id_cliente'] ?? '',
+            'CLIENTE': item['CLIENTE'] ?? item['nombre'] ?? '',
+            'RUT': item['RUT'] ?? item['rut'] ?? '',
+            'nombre': item['nombre'] ?? item['CLIENTE'] ?? '',
+          };
+        }).toList();
+
+        await _offlineStorage.cacheClientes(clientes);
+        SafeLogger.info(
+            'Clientes obtenidos online y cacheados: ${clientes.length}');
+        return clientes;
+      } else {
+        final cachedClientes = await _offlineStorage.getCachedClientes();
+        SafeLogger.info(
+            'Clientes obtenidos desde caché: ${cachedClientes.length}');
+        return cachedClientes;
+      }
+    } catch (e) {
+      SafeLogger.warning('Error al obtener clientes online, usando caché', e);
+      final cachedClientes = await _offlineStorage.getCachedClientes();
+      if (cachedClientes.isEmpty) {
+        throw Exception('No hay datos disponibles offline');
+      }
+      return cachedClientes;
     }
   }
 
   static Future<Map<String, dynamic>> obtenerMaquinaPorId(int maquinaId) async {
     try {
-      final response = await _api.get('/maquinas/$maquinaId');
-      final data = response['data'];
+      final isOnline = await _connectivityManager.checkConnectivity();
 
-      return <String, dynamic>{
-        'pkMaquina': data['pkMaquina'],
-        'MAQUINA': data['MAQUINA'] ?? '',
-        'MARCA': data['MARCA'] ?? '',
-        'MODELO': data['MODELO'] ?? '',
-        'PATENTE': data['PATENTE'] ?? '',
-        'ESTADO': data['ESTADO'] ?? '',
-        'ID_MAQUINA': data['ID_MAQUINA'] ?? '',
-        'HR_Actual': data['HR_Actual'],
-        'KM_Actual': data['KM_Actual'],
-        'pkUltima_recarga': data['pkUltima_recarga'],
-        'ID_Ultima_Recarga': data['ID_Ultima_Recarga'],
-        'Litros_Ultima': data['Litros_Ultima'],
-        'Fecha_Ultima': data['Fecha_Ultima'],
-        'OPERADORES': data['OPERADORES'] ?? [],
-      };
-    } catch (e) {
-      throw Exception('Error al obtener máquina por ID: $e');
-    }
-  }
+      if (isOnline) {
+        // Online: obtener desde API
+        final response = await _api.get('/maquinas/$maquinaId');
 
-  static Future<List<Map<String, dynamic>>> obtenerContratos() async {
-    try {
-      final response = await _api.get('/contratos/');
-      return List<Map<String, dynamic>>.from(response['data'] ?? response);
+        if (response['success'] == true) {
+          final data = response['data'];
+          final maquinaData = <String, dynamic>{
+            'pkMaquina': data['pkMaquina'],
+            'MAQUINA': data['MAQUINA'] ?? '',
+            'MARCA': data['MARCA'] ?? '',
+            'MODELO': data['MODELO'] ?? '',
+            'PATENTE': data['PATENTE'] ?? '',
+            'ESTADO': data['ESTADO'] ?? '',
+            'ID_MAQUINA': data['ID_MAQUINA'] ?? '',
+            'CODIGO_MAQUINA': data['CODIGO_MAQUINA']?.toString() ?? '',
+            'HR_Actual': data['HR_Actual'],
+            'KM_Actual': data['KM_Actual'],
+            'OPERADORES': data['OPERADORES'] ?? [],
+            'OBSERVACIONES': data['OBSERVACIONES']?.toString() ?? '',
+            'FECHA_CREACION': data['FECHA_CREACION'],
+            'FECHA_ACTUALIZACION': data['FECHA_ACTUALIZACION'],
+            // Datos de última recarga
+            'pkUltima_recarga': data['pkUltima_recarga'],
+            'ID_Ultima_Recarga': data['ID_Ultima_Recarga'],
+            'Litros_Ultima': data['Litros_Ultima'],
+            'Fecha_Ultima': data['Fecha_Ultima'],
+          };
+
+          // Cachear la máquina individual
+          await _offlineStorage.cacheMaquinas([maquinaData]);
+          SafeLogger.info('Máquina $maquinaId obtenida online y cacheada');
+
+          return maquinaData;
+        }
+
+        throw Exception('No se encontró la máquina');
+      } else {
+        // Offline: buscar en caché
+        final cachedMaquinas = await _offlineStorage.getCachedMaquinas();
+        final maquina = cachedMaquinas.firstWhere(
+          (m) => m['pkMaquina'] == maquinaId,
+          orElse: () => throw Exception('Máquina no encontrada en caché'),
+        );
+
+        SafeLogger.info('Máquina $maquinaId obtenida desde caché');
+        return maquina;
+      }
     } catch (e) {
-      throw Exception('Error al obtener contratos: $e');
+      SafeLogger.error('Error al obtener máquina $maquinaId', e);
+
+      // Fallback: intentar caché si falla online
+      try {
+        final cachedMaquinas = await _offlineStorage.getCachedMaquinas();
+        final maquina = cachedMaquinas.firstWhere(
+          (m) => m['pkMaquina'] == maquinaId,
+          orElse: () => throw Exception('Máquina no disponible offline'),
+        );
+
+        SafeLogger.warning(
+            'Usando caché como fallback para máquina $maquinaId');
+        return maquina;
+      } catch (cacheError) {
+        throw Exception('Error al obtener máquina: $e');
+      }
     }
   }
 
   static Future<List<Map<String, dynamic>>> obtenerOperadoresMaquina(
       int maquinaId) async {
     try {
-      final response = await _api.get('/maquinas/$maquinaId/operadores');
+      final isOnline = await _connectivityManager.checkConnectivity();
 
-      if (response['success'] == true) {
-        final List<dynamic> rawData = response['data'] ?? [];
-        return rawData.map<Map<String, dynamic>>((item) {
-          return <String, dynamic>{
-            'id': item['id'],
-            'usuario': item['usuario']?.toString() ?? '',
-            'usuario_id': item['usuario_id']?.toString() ?? '',
-            'nombre': item['nombre']?.toString() ?? '',
-            'nombre_completo': item['nombre_completo']?.toString() ?? '',
-          };
-        }).toList();
+      if (isOnline) {
+        final response = await _api.get('/maquinas/$maquinaId/operadores');
+
+        if (response['success'] == true) {
+          final List<dynamic> rawData = response['data'] ?? [];
+          final operadores = rawData.map<Map<String, dynamic>>((item) {
+            return <String, dynamic>{
+              'id': item['id'] ?? item['pkUsuario'],
+              'pkUsuario': item['pkUsuario'] ?? item['id'],
+              'nombre':
+                  item['nombre'] ?? item['usuario'] ?? item['NOMBREUSUARIO'],
+              'usuario': item['usuario'] ?? item['nombre'],
+              'NOMBREUSUARIO': item['NOMBREUSUARIO'] ?? item['nombre'],
+              'RUT': item['RUT'] ?? '',
+            };
+          }).toList();
+
+          await _offlineStorage.cacheOperadoresMaquina(maquinaId, operadores);
+          SafeLogger.info(
+              'Operadores de máquina $maquinaId cacheados: ${operadores.length}');
+          return operadores;
+        }
+        return [];
+      } else {
+        final cachedOperadores =
+            await _offlineStorage.getCachedOperadoresMaquina(maquinaId);
+        SafeLogger.info(
+            'Operadores obtenidos desde caché: ${cachedOperadores.length}');
+        return cachedOperadores;
       }
-
-      return [];
     } catch (e) {
-      SafeLogger.error('ERROR obteniendo operadores de máquina $maquinaId', e);
-      return [];
+      SafeLogger.warning('Error al obtener operadores online, usando caché', e);
+      final cachedOperadores =
+          await _offlineStorage.getCachedOperadoresMaquina(maquinaId);
+      return cachedOperadores;
     }
   }
 
@@ -542,64 +690,51 @@ class DatabaseHelper {
     int maquinaId,
   ) async {
     try {
-      final response = await _api.get('/contratos/?maquina_id=$maquinaId');
+      final isOnline = await _connectivityManager.checkConnectivity();
 
-      final List<dynamic> rawData = response['data'] ?? [];
-      return rawData.map<Map<String, dynamic>>((item) {
-        return <String, dynamic>{
-          'id': item['id'],
-          'id_contrato': item['id_contrato'] ?? '',
-          'nombre': item['nombre'] ?? '',
-          'pk_maquina': item['pk_maquina'],
-          'pk_cliente': item['pk_cliente'],
-          'pk_obra': item['pk_obra'],
-          'fecha_inicio': item['fecha_inicio'],
-          'estado': item['estado'] ?? '',
-          'maquina_nombre': item['maquina_nombre'] ?? '',
-          'cliente_nombre': item['cliente_nombre'] ?? '',
-          'obra_nombre': item['obra_nombre'] ?? '',
-        };
-      }).toList();
+      if (isOnline) {
+        // Online: obtener desde API y cachear
+        final response = await _api.get('/contratos/?maquina_id=$maquinaId');
+        final List<dynamic> rawData = response['data'] ?? [];
+        final contratos = rawData.map<Map<String, dynamic>>((item) {
+          return <String, dynamic>{
+            'id': item['id'],
+            'id_contrato': item['id_contrato'] ?? '',
+            'nombre': item['nombre'] ?? '',
+            'pk_maquina': item['pk_maquina'],
+            'pk_cliente': item['pk_cliente'],
+            'pk_obra': item['pk_obra'],
+            'fecha_inicio': item['fecha_inicio'],
+            'estado': item['estado'] ?? '',
+            'maquina_nombre': item['maquina_nombre'] ?? '',
+            'cliente_nombre': item['cliente_nombre'] ?? '',
+            'obra_nombre': item['obra_nombre'] ?? '',
+          };
+        }).toList();
+
+        // Cachear contratos de la máquina
+        await _offlineStorage.cacheContratosMaquina(maquinaId, contratos);
+        SafeLogger.info(
+            'Contratos de máquina $maquinaId cacheados: ${contratos.length}');
+
+        return contratos;
+      } else {
+        // Offline: obtener desde caché
+        final cachedContratos =
+            await _offlineStorage.getCachedContratosMaquina(maquinaId);
+        SafeLogger.info(
+            'Contratos obtenidos desde caché: ${cachedContratos.length}');
+        return cachedContratos;
+      }
     } catch (e) {
-      throw Exception('Error al obtener contratos por máquina: $e');
-    }
-  }
-
-  static Future<List<Map<String, dynamic>>> obtenerObras() async {
-    try {
-      final response = await _api.get('/obras/');
-
-      final List<dynamic> rawData = response['data'] ?? [];
-      return rawData.map<Map<String, dynamic>>((item) {
-        return <String, dynamic>{
-          'pkObra': item['pkObra'] ?? item['id'],
-          'ID_OBRA': item['ID_OBRA'] ?? item['id_obra'] ?? '',
-          'OBRA': item['OBRA'] ?? item['nombre'] ?? '',
-          'nombre': item['nombre'] ?? item['OBRA'] ?? '',
-        };
-      }).toList();
-    } catch (e) {
-      throw Exception('Error al obtener obras: $e');
-    }
-  }
-
-  static Future<List<Map<String, dynamic>>> obtenerClientes() async {
-    try {
-      final response = await _api.get('/clientes/');
-
-      // Procesar la respuesta manejando valores null
-      final List<dynamic> rawData = response['data'] ?? [];
-      return rawData.map<Map<String, dynamic>>((item) {
-        return <String, dynamic>{
-          'pkCliente': item['pkCliente'] ?? item['id'],
-          'ID_CLIENTE': item['ID_CLIENTE'] ?? item['id_cliente'] ?? '',
-          'CLIENTE': item['CLIENTE'] ?? item['nombre'] ?? '',
-          'RUT': item['RUT'] ?? item['rut'] ?? '',
-          'nombre': item['nombre'] ?? item['CLIENTE'] ?? '',
-        };
-      }).toList();
-    } catch (e) {
-      throw Exception('Error al obtener clientes: $e');
+      SafeLogger.warning('Error al obtener contratos online, usando caché', e);
+      final cachedContratos =
+          await _offlineStorage.getCachedContratosMaquina(maquinaId);
+      if (cachedContratos.isEmpty) {
+        throw Exception(
+            'No hay contratos disponibles offline para esta máquina');
+      }
+      return cachedContratos;
     }
   }
 
@@ -609,24 +744,177 @@ class DatabaseHelper {
     String search = '',
   }) async {
     try {
-      String endpoint = '/contratos_reportes/?page=$page';
+      final isOnline = await _connectivityManager.checkConnectivity();
 
-      if (limit != null) {
-        endpoint += '&limit=$limit';
+      if (isOnline) {
+        // Online: obtener desde API
+        String endpoint = '/contratos_reportes/?page=$page';
+
+        if (limit != null) {
+          endpoint += '&limit=$limit';
+        }
+
+        if (search.isNotEmpty) {
+          endpoint += '&search=${Uri.encodeComponent(search)}';
+        }
+
+        final response = await _api.get(endpoint);
+
+        // Cachear los reportes
+        if (response['data'] != null) {
+          await _offlineStorage.cacheContratosReportes(
+              List<Map<String, dynamic>>.from(response['data']));
+          SafeLogger.info('Reportes cacheados correctamente');
+        }
+
+        return response;
+      } else {
+        // Offline: obtener desde caché
+        final cachedReportes =
+            await _offlineStorage.getCachedContratosReportes();
+
+        // Simular paginación offline
+        final startIndex = (page - 1) * (limit ?? 20);
+        final endIndex = startIndex + (limit ?? 20);
+
+        // Filtrar por búsqueda si existe
+        var filteredReportes = cachedReportes;
+        if (search.isNotEmpty) {
+          filteredReportes = cachedReportes.where((reporte) {
+            final searchLower = search.toLowerCase();
+            return (reporte['ID_REPORTE']
+                        ?.toString()
+                        .toLowerCase()
+                        .contains(searchLower) ??
+                    false) ||
+                (reporte['MAQUINA']
+                        ?.toString()
+                        .toLowerCase()
+                        .contains(searchLower) ??
+                    false) ||
+                (reporte['CONTRATO']
+                        ?.toString()
+                        .toLowerCase()
+                        .contains(searchLower) ??
+                    false);
+          }).toList();
+        }
+
+        final paginatedReportes = filteredReportes.sublist(
+          startIndex.clamp(0, filteredReportes.length),
+          endIndex.clamp(0, filteredReportes.length),
+        );
+
+        SafeLogger.info(
+            'Reportes obtenidos desde caché: ${paginatedReportes.length}');
+
+        return {
+          'success': true,
+          'data': paginatedReportes,
+          'pagination': {
+            'page': page,
+            'per_page': limit ?? 20,
+            'total': filteredReportes.length,
+            'total_pages': (filteredReportes.length / (limit ?? 20)).ceil(),
+          },
+          'offline': true, // Indicador de que viene de caché
+        };
       }
-
-      if (search.isNotEmpty) {
-        endpoint += '&search=${Uri.encodeComponent(search)}';
-      }
-
-      final response = await _api.get(endpoint);
-      return response;
     } catch (e) {
-      throw Exception('Error al obtener reportes: $e');
+      SafeLogger.warning('Error al obtener reportes online, usando caché', e);
+
+      // Fallback a caché
+      final cachedReportes = await _offlineStorage.getCachedContratosReportes();
+      if (cachedReportes.isEmpty) {
+        throw Exception('No hay reportes disponibles offline');
+      }
+
+      return {
+        'success': true,
+        'data': cachedReportes,
+        'offline': true,
+      };
     }
   }
 
   static Future<Map<String, dynamic>> registrarContratoReporte({
+    required String fechaReporte,
+    required int pkMaquina,
+    required String maquinaTxt,
+    required int pkContrato,
+    required String contratoTxt,
+    required double odometroInicial,
+    required double odometroFinal,
+    required double horasTrabajadas,
+    required double horasMinimas,
+    required double kmInicial,
+    required double kmFinal,
+    required double kilometros,
+    required String trabajoRealizado,
+    required String estadoReporte,
+    required String observaciones,
+    required String incidente,
+    String? foto1,
+    String? foto2,
+    required int usuarioId,
+    required String usuarioNombre,
+  }) async {
+    // Verificar conectividad
+    final isOnline = await _connectivityManager.checkConnectivity();
+
+    if (isOnline) {
+      // Intentar registro online
+      return await _registrarReporteOnline(
+        fechaReporte: fechaReporte,
+        pkMaquina: pkMaquina,
+        maquinaTxt: maquinaTxt,
+        pkContrato: pkContrato,
+        contratoTxt: contratoTxt,
+        odometroInicial: odometroInicial,
+        odometroFinal: odometroFinal,
+        horasTrabajadas: horasTrabajadas,
+        horasMinimas: horasMinimas,
+        kmInicial: kmInicial,
+        kmFinal: kmFinal,
+        kilometros: kilometros,
+        trabajoRealizado: trabajoRealizado,
+        estadoReporte: estadoReporte,
+        observaciones: observaciones,
+        incidente: incidente,
+        foto1: foto1,
+        foto2: foto2,
+        usuarioId: usuarioId,
+        usuarioNombre: usuarioNombre,
+      );
+    } else {
+      // Registro offline
+      return await _registrarReporteOffline(
+        fechaReporte: fechaReporte,
+        pkMaquina: pkMaquina,
+        maquinaTxt: maquinaTxt,
+        pkContrato: pkContrato,
+        contratoTxt: contratoTxt,
+        odometroInicial: odometroInicial,
+        odometroFinal: odometroFinal,
+        horasTrabajadas: horasTrabajadas,
+        horasMinimas: horasMinimas,
+        kmInicial: kmInicial,
+        kmFinal: kmFinal,
+        kilometros: kilometros,
+        trabajoRealizado: trabajoRealizado,
+        estadoReporte: estadoReporte,
+        observaciones: observaciones,
+        incidente: incidente,
+        foto1: foto1,
+        foto2: foto2,
+        usuarioId: usuarioId,
+        usuarioNombre: usuarioNombre,
+      );
+    }
+  }
+
+  /// Registro online de reporte
+  static Future<Map<String, dynamic>> _registrarReporteOnline({
     required String fechaReporte,
     required int pkMaquina,
     required String maquinaTxt,
@@ -677,7 +965,76 @@ class DatabaseHelper {
       );
       return response;
     } catch (e) {
+      SafeLogger.error('Error al registrar reporte online', e);
       return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// Registro offline de reporte
+  static Future<Map<String, dynamic>> _registrarReporteOffline({
+    required String fechaReporte,
+    required int pkMaquina,
+    required String maquinaTxt,
+    required int pkContrato,
+    required String contratoTxt,
+    required double odometroInicial,
+    required double odometroFinal,
+    required double horasTrabajadas,
+    required double horasMinimas,
+    required double kmInicial,
+    required double kmFinal,
+    required double kilometros,
+    required String trabajoRealizado,
+    required String estadoReporte,
+    required String observaciones,
+    required String incidente,
+    String? foto1,
+    String? foto2,
+    required int usuarioId,
+    required String usuarioNombre,
+  }) async {
+    try {
+      SafeLogger.info('Guardando reporte offline - Contrato: $pkContrato');
+
+      final idReporte = _generateReporteId();
+
+      final uuid = await _offlineStorage.saveReporteOffline(
+        idReporte: idReporte,
+        fechaReporte: fechaReporte,
+        pkMaquina: pkMaquina,
+        maquinaTxt: maquinaTxt,
+        pkContrato: pkContrato,
+        contratoTxt: contratoTxt,
+        odometroInicial: odometroInicial,
+        odometroFinal: odometroFinal,
+        horasTrabajadas: horasTrabajadas,
+        horasMinimas: horasMinimas,
+        kmInicial: kmInicial,
+        kmFinal: kmFinal,
+        kilometros: kilometros,
+        trabajoRealizado: trabajoRealizado,
+        estadoReporte: estadoReporte,
+        observaciones: observaciones,
+        incidente: incidente,
+        foto1: foto1,
+        foto2: foto2,
+        usuarioId: usuarioId,
+        usuarioNombre: usuarioNombre,
+      );
+
+      return {
+        'success': true,
+        'message': 'Reporte guardado offline correctamente',
+        'id_reporte': idReporte,
+        'uuid': uuid,
+        'offline': true,
+      };
+    } catch (e) {
+      SafeLogger.error('Error al guardar reporte offline', e);
+      return {
+        'success': false,
+        'message': 'Error al guardar reporte offline: $e'
+      };
     }
   }
 
@@ -704,6 +1061,55 @@ class DatabaseHelper {
     } catch (e) {
       SafeLogger.error('Error al obtener recibo de recarga $recargaId', e);
       throw Exception('Error al obtener recibo: $e');
+    }
+  }
+
+  ///Obtener todos los contratos (sin filtrar por máquina)
+  static Future<List<Map<String, dynamic>>> obtenerContratos() async {
+    try {
+      final isOnline = await _connectivityManager.checkConnectivity();
+
+      if (isOnline) {
+        // Online: obtener desde API y cachear
+        final response = await _api.get('/contratos/');
+        final List<dynamic> rawData = response['data'] ?? [];
+        final contratos = rawData.map<Map<String, dynamic>>((item) {
+          return <String, dynamic>{
+            'id': item['id'],
+            'pkContrato': item['id'], // Alias para compatibilidad
+            'id_contrato': item['id_contrato'] ?? '',
+            'nombre': item['nombre'] ?? '',
+            'NOMBRE_CONTRATO': item['nombre'] ?? '', // Alias
+            'pk_maquina': item['pk_maquina'],
+            'pk_cliente': item['pk_cliente'],
+            'pk_obra': item['pk_obra'],
+            'fecha_inicio': item['fecha_inicio'],
+            'estado': item['estado'] ?? '',
+            'maquina_nombre': item['maquina_nombre'] ?? '',
+            'cliente_nombre': item['cliente_nombre'] ?? '',
+            'obra_nombre': item['obra_nombre'] ?? '',
+          };
+        }).toList();
+
+        // Cachear contratos globales
+        await _offlineStorage.cacheContratos(contratos);
+        SafeLogger.info('Contratos globales cacheados: ${contratos.length}');
+
+        return contratos;
+      } else {
+        // Offline: obtener desde caché
+        final cachedContratos = await _offlineStorage.getCachedContratos();
+        SafeLogger.info(
+            'Contratos obtenidos desde caché: ${cachedContratos.length}');
+        return cachedContratos;
+      }
+    } catch (e) {
+      SafeLogger.warning('Error al obtener contratos online, usando caché', e);
+      final cachedContratos = await _offlineStorage.getCachedContratos();
+      if (cachedContratos.isEmpty) {
+        throw Exception('No hay contratos disponibles offline');
+      }
+      return cachedContratos;
     }
   }
 }

@@ -158,7 +158,6 @@ class HtmlToEscPos {
           buffer.write('${sigNames[1].text.trim()}$LINE_FEED');
         }
       }
-
     } catch (e) {
       print('Error al parsear HTML: $e');
       // Fallback: imprimir texto plano sin formato
