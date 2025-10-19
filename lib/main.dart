@@ -5,7 +5,7 @@ import 'providers/auth_provider.dart';
 import 'services/connectivity_manager.dart';
 import 'services/sync_service.dart';
 import 'screens/login_screen.dart';
-import 'screens/dashboard_screen.dart'; // Solo una importación
+import 'screens/dashboard_screen.dart';
 import 'screens/splash_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
