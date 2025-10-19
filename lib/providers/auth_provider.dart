@@ -4,6 +4,7 @@ import '../services/database_helper.dart';
 import '../services/connectivity_manager.dart';
 import '../services/offline_storage_service.dart';
 import '../services/sync_service.dart';
+import '../services/analytics_service.dart';
 import '../utils/logger.dart';
 
 class AuthProvider with ChangeNotifier {
@@ -13,12 +14,11 @@ class AuthProvider with ChangeNotifier {
   final ConnectivityManager _connectivityManager = ConnectivityManager();
   final OfflineStorageService _offlineStorage = OfflineStorageService();
   final SyncService _syncService = SyncService();
+  final AnalyticsService _analytics = AnalyticsService();
 
-  bool get isAuthenticated => _isAuthenticated;
   Map<String, dynamic>? get user => _user;
   bool get isLoading => _isLoading;
-  String? get userRole => _user?['ROL'];
-  int? get userId => _user?['pkUsuario'];
+  bool get isAuthenticated => _isAuthenticated;
   bool get isOnline => _connectivityManager.isOnline;
 
   // Verifica si el usuario está autenticado al iniciar la app
@@ -29,13 +29,18 @@ class AuthProvider with ChangeNotifier {
       await _syncService.initialize();
 
       // Verificar si hay sesión guardada
-      // Verificar si hay sesión guardada
       final hasSession = await SecureStorage.hasSession();
       if (hasSession) {
         final userData = await SecureStorage.getUserData();
         if (userData != null && userData.isNotEmpty) {
           _user = userData;
           _isAuthenticated = true;
+
+          //Registra en Analytics
+          await _analytics.logCustomEvent('session_restored', {
+            'user_id': userData['pkUsuario']?.toString() ?? '',
+            'user_name': userData['NOMBREUSUARIO'] ?? '',
+          });
           SafeLogger.info('Sesión restaurada: ${userData['NOMBREUSUARIO']}');
           notifyListeners();
 
@@ -49,8 +54,10 @@ class AuthProvider with ChangeNotifier {
           await SecureStorage.clearAll();
         }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       SafeLogger.error('Error al inicializar AuthProvider', e);
+      await _analytics.recordFatalError(
+          e, stackTrace, 'initialize_auth_provider');
       // En caso de error, limpiar sesión corrupta
       await SecureStorage.clearAll();
     }
@@ -58,68 +65,91 @@ class AuthProvider with ChangeNotifier {
 
   /// Pre-carga datos en caché para uso offline
   Future<void> _preloadCachedData() async {
+    final startTime = DateTime.now();
     try {
       SafeLogger.info('Precargando datos en caché...');
 
       // Cargar datos en paralelo para mejor rendimiento
-      await Future.wait([
+      final results = await Future.wait([
         _cacheMaquinas(),
         _cacheObras(),
         _cacheClientes(),
         _cacheContratos(),
       ]);
 
-      SafeLogger.info('Datos precargados exitosamente');
-    } catch (e) {
+      final duration = DateTime.now().difference(startTime);
+
+      // Registrar en Analytics
+      await _analytics.logCacheDownload(
+        maquinasCount: results[0],
+        obrasCount: results[1],
+        clientesCount: results[2],
+        contratosCount: results[3],
+        duration: duration,
+      );
+
+      SafeLogger.info(
+          'Datos precargados exitosamente en ${duration.inMilliseconds} ms');
+    } catch (e, stackTrace) {
       SafeLogger.warning('Error al precargar datos en caché', e);
+      await _analytics.logError('cache_preload_error', e.toString(),
+          stackTrace: stackTrace);
     }
   }
 
-  Future<void> _cacheMaquinas() async {
+  Future<int> _cacheMaquinas() async {
     try {
       final maquinas = await DatabaseHelper.obtenerMaquinas();
       if (maquinas.isNotEmpty) {
         await _offlineStorage.cacheMaquinas(maquinas);
         SafeLogger.info('Máquinas cacheadas: ${maquinas.length}');
       }
+      return maquinas.length;
     } catch (e) {
       SafeLogger.error('Error al cachear máquinas', e);
+      return 0;
     }
   }
 
-  Future<void> _cacheObras() async {
+  Future<int> _cacheObras() async {
     try {
       final obras = await DatabaseHelper.obtenerObras();
       if (obras.isNotEmpty) {
         await _offlineStorage.cacheObras(obras);
         SafeLogger.info('Obras cacheadas: ${obras.length}');
       }
+      return obras.length;
     } catch (e) {
       SafeLogger.error('Error al cachear obras', e);
+      return 0;
     }
   }
 
-  Future<void> _cacheClientes() async {
+  Future<int> _cacheClientes() async {
     try {
       final clientes = await DatabaseHelper.obtenerClientes();
       if (clientes.isNotEmpty) {
         await _offlineStorage.cacheClientes(clientes);
         SafeLogger.info('Clientes cacheados: ${clientes.length}');
       }
+      return clientes.length;
     } catch (e) {
       SafeLogger.error('Error al cachear clientes', e);
+      return 0;
     }
   }
 
-  Future<void> _cacheContratos() async {
+  Future<int> _cacheContratos() async {
     try {
       final contratos = await DatabaseHelper.obtenerContratos();
       if (contratos.isNotEmpty) {
         await _offlineStorage.cacheContratos(contratos);
         SafeLogger.info('Contratos cacheados: ${contratos.length}');
       }
+      return contratos.length;
     } catch (e) {
       SafeLogger.error('Error al cachear contratos', e);
+      return 0;
     }
   }
 

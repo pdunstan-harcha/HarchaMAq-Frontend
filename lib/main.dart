@@ -1,9 +1,13 @@
+import 'dart:async';
+import 'dart:ui' show PlatformDispatcher;
 import 'package:flutter/material.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:harcha_maquinaria/utils/logger.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'services/connectivity_manager.dart';
 import 'services/sync_service.dart';
+import 'services/analytics_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/splash_screen.dart';
@@ -11,48 +15,58 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
 void main() async {
-  // Asegurar inicialización de Flutter
   WidgetsFlutterBinding.ensureInitialized();
 
-  try {
-    // Inicializar Firebase
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    SafeLogger.info('Firebase inicializado correctamente');
-  } catch (e) {
-    SafeLogger.error('Error al inicializar Firebase', e);
-  }
+  // 🔥 Capturar errores de Flutter
+  FlutterError.onError = (errorDetails) {
+    FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
+    SafeLogger.error('Flutter Error', errorDetails.exception);
+  };
 
-  // Crear e inicializar AuthProvider
-  final authProvider = AuthProvider();
+  // 🔥 Capturar errores asíncronos
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
+  };
 
-  try {
-    await authProvider.initialize();
-    SafeLogger.info('AuthProvider inicializado correctamente');
-  } catch (e) {
-    SafeLogger.error('Error al inicializar AuthProvider', e);
-  }
+  runZonedGuarded(() async {
+    try {
+      // Inicializar Firebase
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      SafeLogger.info('Firebase inicializado');
 
-  // Inicializar otros servicios globales
-  final connectivityManager = ConnectivityManager();
-  final syncService = SyncService();
+      // 🔥 Inicializar Analytics
+      final analyticsService = AnalyticsService();
+      await analyticsService.initialize();
 
-  runApp(
-    MultiProvider(
-      providers: [
-        // AuthProvider ya inicializado
-        ChangeNotifierProvider.value(value: authProvider),
+      // Inicializar AuthProvider
+      final authProvider = AuthProvider();
+      await authProvider.initialize();
 
-        // ConnectivityManager
-        ChangeNotifierProvider.value(value: connectivityManager),
+      // Otros servicios
+      final connectivityManager = ConnectivityManager();
+      final syncService = SyncService();
 
-        // SyncService (no es ChangeNotifier, pero lo hacemos disponible)
-        Provider.value(value: syncService),
-      ],
-      child: const HarchaApp(),
-    ),
-  );
+      runApp(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider.value(value: authProvider),
+            ChangeNotifierProvider.value(value: connectivityManager),
+            Provider.value(value: syncService),
+            Provider.value(value: analyticsService), // 🔥 Agregar
+          ],
+          child: const HarchaApp(),
+        ),
+      );
+    } catch (e, stack) {
+      SafeLogger.error('Error fatal', e);
+      FirebaseCrashlytics.instance.recordError(e, stack, fatal: true);
+    }
+  }, (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+  });
 }
 
 class HarchaApp extends StatelessWidget {
