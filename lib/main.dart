@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:harcha_maquinaria/utils/logger.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
+import 'services/connectivity_manager.dart';
+import 'services/sync_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart'; // Solo una importación
 import 'screens/splash_screen.dart';
@@ -9,14 +11,44 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
 void main() async {
+  // Asegurar inicialización de Flutter
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+
+  try {
+    // Inicializar Firebase
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    SafeLogger.info('Firebase inicializado correctamente');
+  } catch (e) {
+    SafeLogger.error('Error al inicializar Firebase', e);
+  }
+
+  // Crear e inicializar AuthProvider
+  final authProvider = AuthProvider();
+
+  try {
+    await authProvider.initialize();
+    SafeLogger.info('AuthProvider inicializado correctamente');
+  } catch (e) {
+    SafeLogger.error('Error al inicializar AuthProvider', e);
+  }
+
+  // Inicializar otros servicios globales
+  final connectivityManager = ConnectivityManager();
+  final syncService = SyncService();
+
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()..checkAuth()),
+        // AuthProvider ya inicializado
+        ChangeNotifierProvider.value(value: authProvider),
+
+        // ConnectivityManager
+        ChangeNotifierProvider.value(value: connectivityManager),
+
+        // SyncService (no es ChangeNotifier, pero lo hacemos disponible)
+        Provider.value(value: syncService),
       ],
       child: const HarchaApp(),
     ),
